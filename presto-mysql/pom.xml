@@ -22,6 +22,13 @@
             <version>2.0.0-rc2</version>
         </dependency>
 
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.1.28</version>
+			<scope>runtime</scope>
+		</dependency>	
+
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>node</artifactId>

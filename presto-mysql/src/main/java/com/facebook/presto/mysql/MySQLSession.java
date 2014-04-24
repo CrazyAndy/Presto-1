@@ -43,7 +43,7 @@ public class MySQLSession
             return;
         }
         try {
-            session = DriverManager.getConnection("jdbc:mysql://localhost:3306/mkyongcom", "root", "");
+            session = DriverManager.getConnection("jdbc:mysql://localhost:3306/rainier1", "root", "");
         }
         catch (SQLException e) {
             System.out.println("Connection Failed! Check output console");
