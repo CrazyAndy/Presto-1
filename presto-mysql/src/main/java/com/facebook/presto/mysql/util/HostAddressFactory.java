@@ -13,9 +13,7 @@
  */
 package com.facebook.presto.mysql.util;
 
-import com.datastax.driver.core.Host;
 import com.facebook.presto.spi.HostAddress;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -26,7 +24,7 @@ public class HostAddressFactory
 {
     private final Map<String, HostAddress> hostMap = new HashMap<>();
 
-    public HostAddress toHostAddress(Host host)
+    public HostAddress toHostAddress(MySQLHost host)
     {
         String hostAddressName = host.getAddress().getHostAddress();
         HostAddress address = hostMap.get(hostAddressName);
@@ -37,10 +35,10 @@ public class HostAddressFactory
         return address;
     }
 
-    public List<HostAddress> toHostAddressList(Collection<Host> hosts)
+    public List<HostAddress> toHostAddressList(Collection<MySQLHost> hosts)
     {
         ArrayList<HostAddress> list = new ArrayList<>(hosts.size());
-        for (Host host : hosts) {
+        for (MySQLHost host : hosts) {
             list.add(toHostAddress(host));
         }
         return list;

@@ -13,24 +13,19 @@
  */
 package com.facebook.presto.mysql.util;
 
-import com.facebook.presto.spi.HostAddress;
-import org.testng.annotations.Test;
-import java.util.Collection;
-import java.util.List;
-
-import static org.testng.Assert.assertEquals;
-
-public class TestHostAddressFactory
+import java.net.InetAddress;
+public class MySQLHost
 {
-    @Test
-    public void testToHostAddressList()
-            throws Exception
-    {
-        Collection<MySQLHost> hosts = null;
-
-        HostAddressFactory hostAddressFactory = new HostAddressFactory();
-        List<HostAddress> list = hostAddressFactory.toHostAddressList(hosts);
-
-        assertEquals("[[102:304:506:708:90a:b0c:d0e:f10], 1.2.3.4]", list.toString());
-    }
+     private InetAddress address;
+     public MySQLHost(InetAddress address)
+     {
+         if (address == null) {
+           throw new NullPointerException();
+         }
+         this.address = address;
+     }
+     public InetAddress getAddress()
+     {
+         return address;
+     }
 }

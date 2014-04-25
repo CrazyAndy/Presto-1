@@ -13,8 +13,8 @@
  */
 package com.facebook.presto.mysql;
 
-import com.datastax.driver.core.Host;
 import com.facebook.presto.mysql.util.HostAddressFactory;
+import com.facebook.presto.mysql.util.MySQLHost;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorSplitManager;
 import com.facebook.presto.spi.Domain;
@@ -209,7 +209,7 @@ public class MySQLSplitManager
             checkArgument(partition instanceof MySQLPartition, "partitions are no MySQLPartitions");
             MySQLPartition mySQLPartition = (MySQLPartition) partition;
 
-            Set<Host> hosts = mySQLSession.getReplicas(schema, mySQLPartition.getKeyAsByteBuffer());
+            Set<MySQLHost> hosts = mySQLSession.getReplicas(schema, mySQLPartition.getKeyAsByteBuffer());
             List<HostAddress> addresses = hostAddressFactory.toHostAddressList(hosts);
             MySQLSplit split = new MySQLSplit(connectorId, schema, table, mySQLPartition.getPartitionId(), null, addresses);
             builder.add(split);

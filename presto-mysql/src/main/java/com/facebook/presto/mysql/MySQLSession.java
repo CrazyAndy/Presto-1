@@ -13,17 +13,22 @@
  */
 package com.facebook.presto.mysql;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.datastax.driver.core.Host;
+import com.facebook.presto.mysql.util.MySQLHost;
 import com.facebook.presto.spi.SchemaTableName;
 
 public class MySQLSession
@@ -43,7 +48,7 @@ public class MySQLSession
             return;
         }
         try {
-            session = DriverManager.getConnection("jdbc:mysql://localhost:3306/rainier1", "root", "");
+            session = DriverManager.getConnection("jdbc:mysql://localhost:3306", "root", "");
         }
         catch (SQLException e) {
             System.out.println("Connection Failed! Check output console");
@@ -69,28 +74,65 @@ public class MySQLSession
         }
     }
 
-    public Collection<Host> getAllHosts()
+    public Collection<MySQLHost> getAllHosts()
     {
-      return null;
+       List<MySQLHost> hosts = new ArrayList<MySQLHost>();
+       try {
+        MySQLHost localHost = new MySQLHost(InetAddress.getLocalHost());
+        hosts.add(localHost);
+       }
+       catch (UnknownHostException e) {
+        e.printStackTrace();
+       }
+       return hosts;
     }
 
-    public Set<Host> getReplicas(String schema, ByteBuffer keyAsByteBuffer)
+    public Set<MySQLHost> getReplicas(String schema, ByteBuffer keyAsByteBuffer)
     {
-      return null;
+        Set<MySQLHost> hosts = new HashSet<MySQLHost>();
+        try {
+         MySQLHost localHost = new MySQLHost(InetAddress.getLocalHost());
+         hosts.add(localHost);
+        }
+        catch (UnknownHostException e) {
+         e.printStackTrace();
+        }
+        return hosts;
     }
 
     public Iterable<String> getAllSchemas()
     {
-      return null;
+        List<String> schemas = new ArrayList<String>();
+        try {
+            ResultSet rs = session.getMetaData().getCatalogs();
+            while (rs.next()) {
+              schemas.add(rs.getString("TABLE_CAT"));
+            }
+           }
+           catch (Exception e) {
+            e.printStackTrace();
+           }
+           return schemas;
     }
 
     public List<String> getAllTables(String caseSensitiveDatabaseName)
     {
-      return null;
+        List<String> tables = new ArrayList<String>();
+        try {
+            DatabaseMetaData md = session.getMetaData();
+            ResultSet rs = md.getTables(null, null, "%", null);
+            while (rs.next()) {
+              tables.add(rs.getString(3));
+            }
+           }
+           catch (Exception e) {
+            e.printStackTrace();
+           }
+           return tables;
     }
 
     public void getSchema(String databaseName)
-    { }
+    {}
 
     public MySQLTable getTable(SchemaTableName tableName)
     {

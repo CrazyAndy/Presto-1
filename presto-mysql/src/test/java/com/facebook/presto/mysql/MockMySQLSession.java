@@ -13,7 +13,7 @@
  */
 package com.facebook.presto.mysql;
 
-import com.datastax.driver.core.Host;
+import com.facebook.presto.mysql.util.MySQLHost;
 /*import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row; */
 import com.facebook.presto.spi.SchemaNotFoundException;
@@ -144,7 +144,7 @@ public class MockMySQLSession
     }*/
 
     @Override
-    public Set<Host> getReplicas(String schema, ByteBuffer partitionKey)
+    public Set<MySQLHost> getReplicas(String schema, ByteBuffer partitionKey)
     {
         throw new UnsupportedOperationException();
     }
