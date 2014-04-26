@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -36,6 +37,9 @@ public class MySQLSession
     private Connection session = null;
     private Statement statement = null;
     protected final String connectorId;
+    private final String connectionString = "jdbc:mysql://localhost:3306";
+    private final String user = "root";
+    private final String password = "";
     public MySQLSession(String connectorId)
     {
         this.connectorId = connectorId;
@@ -48,7 +52,7 @@ public class MySQLSession
             return;
         }
         try {
-            session = DriverManager.getConnection("jdbc:mysql://localhost:3306", "root", "");
+            session = DriverManager.getConnection(connectionString, user , password);
         }
         catch (SQLException e) {
             System.out.println("Connection Failed! Check output console");
@@ -120,7 +124,7 @@ public class MySQLSession
         List<String> tables = new ArrayList<String>();
         try {
             DatabaseMetaData md = session.getMetaData();
-            ResultSet rs = md.getTables(null, null, "%", null);
+            ResultSet rs = md.getTables(caseSensitiveDatabaseName, null, "%", null);
             while (rs.next()) {
               tables.add(rs.getString(3));
             }
@@ -132,11 +136,35 @@ public class MySQLSession
     }
 
     public void getSchema(String databaseName)
-    {}
+    {
+       try {
+            DatabaseMetaData md = session.getMetaData();
+            ResultSet rs = md.getSchemas(databaseName, null);
+           }
+           catch (Exception e) {
+            e.printStackTrace();
+           }
+    }
 
     public MySQLTable getTable(SchemaTableName tableName)
     {
-      return null;
+       MySQLTableHandle tableHandle = new MySQLTableHandle(connectorId, tableName.getSchemaName(), tableName.getTableName());
+       List<MySQLColumnHandle> columns = new ArrayList<MySQLColumnHandle>();
+       MySQLTable returnTable = new MySQLTable(tableHandle, columns);
+       try {
+           Statement st = session.createStatement();
+           String querySt = "SELECT * FROM " + tableName.getSchemaName() + "." + tableName.getTableName();
+           ResultSet rset = st.executeQuery(querySt);
+           ResultSetMetaData md = rset.getMetaData();
+           for (int i = 1; i <= md.getColumnCount(); i++) {
+             String x = md.getColumnLabel(i);
+             System.out.println(x);
+           }
+          }
+          catch (Exception e) {
+           e.printStackTrace();
+          }
+       return returnTable;
     }
 
     public List<MySQLPartition> getPartitions(MySQLTable table, List<Comparable<?>> filterPrefix)
