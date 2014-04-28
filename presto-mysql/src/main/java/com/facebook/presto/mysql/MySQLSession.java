@@ -20,7 +20,6 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -30,10 +29,7 @@ import java.util.List;
 import java.util.Set;
 
 import com.facebook.presto.mysql.util.MySQLHost;
-import com.datastax.driver.core.ColumnMetadata;
-import com.datastax.driver.core.DataType;
 import com.facebook.presto.spi.SchemaTableName;
-import com.google.common.collect.ImmutableList;
 
 public class MySQLSession
 {
@@ -43,6 +39,7 @@ public class MySQLSession
     private final String connectionString = "jdbc:mysql://localhost:3306";
     private final String user = "root";
     private final String password = "";
+
     public MySQLSession(String connectorId)
     {
         this.connectorId = connectorId;
@@ -153,7 +150,6 @@ public class MySQLSession
     {
        MySQLTableHandle tableHandle = new MySQLTableHandle(connectorId, tableName.getSchemaName(), tableName.getTableName());
        List<MySQLColumnHandle> columnHandles = new ArrayList<MySQLColumnHandle>();
-       MySQLTable returnTable = new MySQLTable(tableHandle, columnHandles);
        try {
            // add primary keys first
            Set<String> primaryKeySet = new HashSet<>();
@@ -167,31 +163,49 @@ public class MySQLSession
                colName = rsetPKQuery.getString("COLUMN_NAME");
                colType = rsetPKQuery.getString("DATA_TYPE");
                primaryKeySet.add(colName);
-               //MySQLColumnHandle columnHandle = buildColumnHandle(colName, colType, true, false, index++);
-               //columnHandles.add(columnHandle);
+               MySQLColumnHandle columnHandle = buildColumnHandle(colName, colType, false, false, index++);
+               columnHandles.add(columnHandle);
            }
            //add other columns next
            Statement st = session.createStatement();
-           String querySt = "SELECT * FROM " + tableName.getSchemaName() + "." + tableName.getTableName();
+           /*String querySt = "SELECT * FROM " + tableName.getSchemaName() + "." + tableName.getTableName();
            ResultSet rset = st.executeQuery(querySt);
            ResultSetMetaData md = rset.getMetaData();
            for (int i = 1; i <= md.getColumnCount(); i++) {
              colName = md.getColumnName(i);
              colType = md.getColumnTypeName(i);
+             colTypeNum = md.getColumnType(i);
              System.out.println(colType);
              System.out.println(colName);
-           }
+             System.out.println(colTypeNum);
+             if (primaryKeySet.contains(colName)) {
+               continue;
+             }
+             MySQLColumnHandle columnHandle = buildColumnHandle(colName, colTypeNum, false, false, index++);*/
+             String querySt = "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" + tableName.getSchemaName() + "' AND TABLE_NAME = '" + tableName.getTableName() + "'";
+             ResultSet rset = st.executeQuery(querySt);
+             while (rset.next()) {
+                 colName = rset.getString("COLUMN_NAME");
+                 colType = rset.getString("DATA_TYPE");
+                 if (primaryKeySet.contains(colName)) {
+                   continue;
+                 }
+                 MySQLColumnHandle columnHandle = buildColumnHandle(colName, colType, false, false, index++);
+                 columnHandles.add(columnHandle);
+             }
        }
        catch (Exception e) {
            e.printStackTrace();
        }
+       MySQLTable returnTable = new MySQLTable(tableHandle, columnHandles);
        return returnTable;
     }
 
-    private MySQLColumnHandle buildColumnHandle(ColumnMetadata columnMeta, boolean partitionKey, boolean clusteringKey, int index)
+    private MySQLColumnHandle buildColumnHandle(String colName, String colType, boolean partitionKey, boolean clusteringKey, int index)
     {
-        MYSQLType mySQLTypes = MYSQLType.getMySQLType(columnMeta.getType().getName());
+        MYSQLType mySQLTypes = MYSQLType.getMySQLType(colType.toUpperCase());
         List<MYSQLType> typeArguments = null;
+        /*MYSQLType mySQLTypes = MYSQLType.getMySQLType(columnMeta.getType().getName());
         if (mySQLTypes != null && mySQLTypes.getTypeArgumentSize() > 0) {
             List<DataType> typeArgs = columnMeta.getType().getTypeArguments();
             switch (mySQLTypes.getTypeArgumentSize()) {
@@ -204,8 +218,8 @@ public class MySQLSession
                 default:
                     throw new IllegalArgumentException("Invalid type arguments: " + typeArgs);
             }
-        }
-        return new MySQLColumnHandle(connectorId, columnMeta.getName(), index, mySQLTypes, typeArguments, partitionKey, clusteringKey);
+        }*/
+        return new MySQLColumnHandle(connectorId, colName, index, mySQLTypes, typeArguments, partitionKey, clusteringKey);
     }
     public List<MySQLPartition> getPartitions(MySQLTable table, List<Comparable<?>> filterPrefix)
     {

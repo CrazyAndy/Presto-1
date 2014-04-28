@@ -13,12 +13,11 @@
  */
 package com.facebook.presto.mysql;
 
-import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.utils.Bytes;
 import com.facebook.presto.mysql.util.MySQLUtils;
 import com.facebook.presto.spi.ColumnType;
-
+import java.sql.Types;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.InetAddress;
@@ -27,16 +26,15 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public enum MYSQLType
         implements FullMySQLType
 {
-    ASCII(ColumnType.STRING, String.class),
+    CHAR(ColumnType.STRING, String.class),
     BIGINT(ColumnType.LONG, Long.class),
     BLOB(ColumnType.STRING, ByteBuffer.class),
+    TEXT(ColumnType.STRING, ByteBuffer.class),
     CUSTOM(ColumnType.STRING, ByteBuffer.class),
     BOOLEAN(ColumnType.BOOLEAN, Boolean.class),
     COUNTER(ColumnType.LONG, Long.class),
@@ -45,11 +43,17 @@ public enum MYSQLType
     FLOAT(ColumnType.DOUBLE, Float.class),
     INET(ColumnType.STRING, InetAddress.class),
     INT(ColumnType.LONG, Integer.class),
-    TEXT(ColumnType.STRING, String.class),
+    INTEGER(ColumnType.LONG, Integer.class),
+    SMALLINT(ColumnType.LONG, Integer.class),
+    TINYINT(ColumnType.LONG, Integer.class),
     TIMESTAMP(ColumnType.LONG, Date.class),
+    TIME(ColumnType.LONG, Date.class),
+    DATE(ColumnType.LONG, Date.class),
     UUID(ColumnType.STRING, java.util.UUID.class),
     TIMEUUID(ColumnType.STRING, java.util.UUID.class),
     VARCHAR(ColumnType.STRING, String.class),
+    NVARCHAR(ColumnType.STRING, String.class),
+    LONGVARCHAR(ColumnType.STRING, String.class),
     VARINT(ColumnType.STRING, BigInteger.class),
     LIST(ColumnType.STRING, null),
     MAP(ColumnType.STRING, null),
@@ -82,75 +86,89 @@ public enum MYSQLType
         }
     }
 
-    public static MYSQLType getSupportedCassandraType(DataType.Name name)
+    public static MYSQLType getMySQLType(String value)
     {
-        MYSQLType mySQLType = getMySQLType(name);
-        checkArgument(mySQLType != null, "Unknown MySQL type: " + name);
-        return mySQLType;
-    }
-
-    public static MYSQLType getMySQLType(DataType.Name name)
-    {
-        switch (name) {
-            case ASCII:
-                return ASCII;
-            case BIGINT:
+        switch (value) {
+            case "CHAR":
+                return CHAR;
+            case "BIGINT":
                 return BIGINT;
-            case BLOB:
+            case "BLOB":
                 return BLOB;
-            case BOOLEAN:
+            case "BOOLEAN":
                 return BOOLEAN;
-            case COUNTER:
-                return COUNTER;
-            case CUSTOM:
-                return CUSTOM;
-            case DECIMAL:
+            case "DECIMAL":
                 return DECIMAL;
-            case DOUBLE:
+            case "DOUBLE":
                 return DOUBLE;
-            case FLOAT:
+            case "FLOAT":
                 return FLOAT;
-            case INET:
-                return INET;
-            case INT:
-                return INT;
-            case LIST:
-                return LIST;
-            case MAP:
-                return MAP;
-            case SET:
-                return SET;
-            case TEXT:
-                return TEXT;
-            case TIMESTAMP:
+            case "TIMESTAMP":
                 return TIMESTAMP;
-            case TIMEUUID:
-                return TIMEUUID;
-            case UUID:
-                return UUID;
-            case VARCHAR:
+            case "DATE":
+                return DATE;
+            case "VARCHAR":
                 return VARCHAR;
-            case VARINT:
-                return VARINT;
+            case "NVARCHAR":
+                return NVARCHAR;
+            case "LONGNVARCHAR":
+                return LONGVARCHAR;
+            case "SMALLINT":
+                return SMALLINT;
+            case "TINYINT":
+                return TINYINT;
+            case "INT":
+                return INT;
+            case "TIME":
+                return TIME;
+            case "INTEGER":
+                return INTEGER;
+            case "TEXT":
+                return TEXT;
             default:
                 return null;
         }
     }
 
-    public static MYSQLType getSupportedMySQLType(String mySQLTypeName)
+    public static int getNativeSQLType(String type)
     {
-        MYSQLType cassandraType = getmySQLType(mySQLTypeName);
-        checkArgument(cassandraType != null, "Unknown Cassandra type: " + mySQLTypeName);
-        return cassandraType;
-    }
-
-    public static MYSQLType getmySQLType(String mySQLTypeName)
-    {
-        DataType.Name name = DataType.Name.valueOf(mySQLTypeName);
-        if (name != null) {
-            return getMySQLType(name);
+        switch (type) {
+            case "CHAR":
+                return Types.CHAR;
+            case "BIGINT":
+                return Types.BIGINT;
+            case "BLOB":
+                return Types.BLOB;
+            case "BOOLEAN":
+                return Types.BOOLEAN;
+            case "DECIMAL":
+                return Types.DECIMAL;
+            case "DOUBLE":
+                return Types.DOUBLE;
+            case "FLOAT":
+                return Types.FLOAT;
+            case "TIMESTAMP":
+                return Types.TIMESTAMP;
+            case "DATE":
+                return Types.DATE;
+            case "VARCHAR":
+                return Types.VARCHAR;
+            case "NVARCHAR":
+                return Types.NVARCHAR;
+            case "LONGVARCHAR":
+                return Types.LONGNVARCHAR;
+            case "SMALLINT":
+                return Types.SMALLINT;
+            case "TINYINT":
+                return Types.TINYINT;
+            case "TIME":
+                return Types.TIME;
+            case "INT":
+            case "INTEGER":
+                return Types.INTEGER;
+            default:
+                return -1;
         }
-        return null;
     }
 
     public static Comparable<?> getColumnValue(Row row, int i, FullMySQLType fullMySQLType)
@@ -166,7 +184,7 @@ public enum MYSQLType
         }
         else {
             switch (mySQLType) {
-                case ASCII:
+                case CHAR:
                 case TEXT:
                 case VARCHAR:
                     return row.getString(i);
@@ -268,7 +286,7 @@ public enum MYSQLType
         }
         else {
             switch (cassandraType) {
-                case ASCII:
+                case CHAR:
                 case TEXT:
                 case VARCHAR:
                     return MySQLUtils.quoteStringLiteral(row.getString(i));
@@ -307,7 +325,7 @@ public enum MYSQLType
     private static String objectToString(Object object, MYSQLType elemType)
     {
         switch (elemType) {
-            case ASCII:
+            case CHAR:
             case TEXT:
             case VARCHAR:
             case UUID:
@@ -361,7 +379,7 @@ public enum MYSQLType
     public Object getJavaValue(Comparable<?> comparable)
     {
         switch (this) {
-            case ASCII:
+            case CHAR:
             case TEXT:
             case VARCHAR:
             case BIGINT:
