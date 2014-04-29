@@ -209,7 +209,7 @@ public class MySQLSplitManager
             checkArgument(partition instanceof MySQLPartition, "partitions are no MySQLPartitions");
             MySQLPartition mySQLPartition = (MySQLPartition) partition;
 
-            Set<MySQLHost> hosts = mySQLSession.getReplicas(schema, mySQLPartition.getKeyAsByteBuffer());
+            Set<MySQLHost> hosts = mySQLSession.getReplicas(schema);
             List<HostAddress> addresses = hostAddressFactory.toHostAddressList(hosts);
             MySQLSplit split = new MySQLSplit(connectorId, schema, table, mySQLPartition.getPartitionId(), null, addresses);
             builder.add(split);

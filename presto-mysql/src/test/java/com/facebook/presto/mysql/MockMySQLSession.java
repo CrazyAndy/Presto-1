@@ -21,7 +21,6 @@ import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.TableNotFoundException;
 import com.google.common.collect.ImmutableList;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -44,7 +43,8 @@ public class MockMySQLSession
 
     public MockMySQLSession(String connectorId)
     {
-       super(connectorId);
+       super(connectorId, new MySQLClientConfig().getFetchSizeForPartitionKeySelect(),
+               new MySQLClientConfig().getLimitForPartitionKeySelect());
        /* super(connectorId,
                 null,
                 new MySQLClientConfig().getFetchSizeForPartitionKeySelect(),
@@ -144,7 +144,7 @@ public class MockMySQLSession
     }*/
 
     @Override
-    public Set<MySQLHost> getReplicas(String schema, ByteBuffer partitionKey)
+    public Set<MySQLHost> getReplicas(String schema)
     {
         throw new UnsupportedOperationException();
     }

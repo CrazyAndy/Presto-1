@@ -16,8 +16,6 @@ package com.facebook.presto.mysql;
 import com.facebook.presto.spi.Partition;
 import com.facebook.presto.spi.TupleDomain;
 
-import java.nio.ByteBuffer;
-
 public class MySQLPartition
         implements Partition
 {
@@ -25,19 +23,16 @@ public class MySQLPartition
     public static final MySQLPartition UNPARTITIONED = new MySQLPartition();
 
     private final String partitionId;
-    private final byte[] key;
     private final TupleDomain tupleDomain;
 
     private MySQLPartition()
     {
         partitionId = UNPARTITIONED_ID;
         tupleDomain = TupleDomain.all();
-        key = null;
     }
 
-    public MySQLPartition(byte[] key, String partitionId, TupleDomain tupleDomain)
+    public MySQLPartition(String partitionId, TupleDomain tupleDomain)
     {
-        this.key = key;
         this.partitionId = partitionId;
         this.tupleDomain = tupleDomain;
     }
@@ -62,10 +57,5 @@ public class MySQLPartition
     public String toString()
     {
         return partitionId;
-    }
-
-    public ByteBuffer getKeyAsByteBuffer()
-    {
-        return ByteBuffer.wrap(key);
     }
 }

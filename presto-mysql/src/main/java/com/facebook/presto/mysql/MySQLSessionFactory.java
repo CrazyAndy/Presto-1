@@ -59,6 +59,6 @@ public class MySQLSessionFactory
         clusterBuilder.withQueryOptions(options);
         Cluster cluster = clusterBuilder.build();
         Session session = cluster.connect();*/
-        return new MySQLSession(connectorId.toString());
+        return new MySQLSession(connectorId.toString(), fetchSizeForPartitionKeySelect, limitForPartitionKeySelect);
     }
 }

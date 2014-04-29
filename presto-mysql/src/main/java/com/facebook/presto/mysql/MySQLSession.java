@@ -15,7 +15,6 @@ package com.facebook.presto.mysql;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -24,12 +23,21 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.datastax.driver.core.querybuilder.Clause;
+import com.datastax.driver.core.querybuilder.QueryBuilder;
+import com.datastax.driver.core.querybuilder.Select;
+import com.datastax.driver.core.querybuilder.Select.Where;
 import com.facebook.presto.mysql.util.MySQLHost;
+import com.facebook.presto.mysql.util.MySQLUtils;
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.SchemaTableName;
+import com.facebook.presto.spi.TupleDomain;
+import com.google.common.collect.ImmutableList;
 
 public class MySQLSession
 {
@@ -39,10 +47,14 @@ public class MySQLSession
     private final String connectionString = "jdbc:mysql://localhost:3306";
     private final String user = "root";
     private final String password = "";
+    private final int limitForPartitionKeySelect;
+    private final int fetchSizeForPartitionKeySelect;
 
-    public MySQLSession(String connectorId)
+    public MySQLSession(String connectorId, int fetchSizeForPartitionKeySelect, int limitForPartitionKeySelect)
     {
         this.connectorId = connectorId;
+        this.fetchSizeForPartitionKeySelect = fetchSizeForPartitionKeySelect;
+        this.limitForPartitionKeySelect = limitForPartitionKeySelect;
         try {
           Class.forName("com.mysql.jdbc.Driver");
         }
@@ -91,7 +103,7 @@ public class MySQLSession
        return hosts;
     }
 
-    public Set<MySQLHost> getReplicas(String schema, ByteBuffer keyAsByteBuffer)
+    public Set<MySQLHost> getReplicas(String schema)
     {
         Set<MySQLHost> hosts = new HashSet<MySQLHost>();
         try {
@@ -163,7 +175,7 @@ public class MySQLSession
                colName = rsetPKQuery.getString("COLUMN_NAME");
                colType = rsetPKQuery.getString("DATA_TYPE");
                primaryKeySet.add(colName);
-               MySQLColumnHandle columnHandle = buildColumnHandle(colName, colType, false, false, index++);
+               MySQLColumnHandle columnHandle = buildColumnHandle(colName, colType, true, false, index++);
                columnHandles.add(columnHandle);
            }
            //add other columns next
@@ -221,8 +233,98 @@ public class MySQLSession
         }*/
         return new MySQLColumnHandle(connectorId, colName, index, mySQLTypes, typeArguments, partitionKey, clusteringKey);
     }
+
     public List<MySQLPartition> getPartitions(MySQLTable table, List<Comparable<?>> filterPrefix)
     {
-      return null;
+        ResultSet rows = queryPartitionKeys(table, filterPrefix);
+        if (rows == null) {
+            // just split the whole partition range
+            return ImmutableList.of(MySQLPartition.UNPARTITIONED);
+        }
+
+        List<MySQLColumnHandle> partitionKeyColumns = table.getPartitionKeyColumns();
+
+        HashMap<ColumnHandle, Comparable<?>> map = new HashMap<>();
+        Set<String> uniquePartitionIds = new HashSet<>();
+        StringBuilder stringBuilder = new StringBuilder();
+
+        boolean isComposite = partitionKeyColumns.size() > 1;
+
+        ImmutableList.Builder<MySQLPartition> partitions = ImmutableList.builder();
+        try {
+          while (rows.next()) {
+                map.clear();
+                stringBuilder.setLength(0);
+                for (int i = 0; i < partitionKeyColumns.size(); i++) {
+                    MySQLColumnHandle columnHandle = partitionKeyColumns.get(i);
+                    //Comparable<?> keyPart = MYSQLType.getColumnValue(row, i, columnHandle.getMySQLType(), columnHandle.getTypeArguments());
+                    Comparable<?> keyPart = null;
+                    map.put(columnHandle, keyPart);
+                    if (i > 0) {
+                        stringBuilder.append(" AND ");
+                    }
+                    stringBuilder.append(MySQLUtils.validColumnName(columnHandle.getName()));
+                    stringBuilder.append(" = ");
+                    //stringBuilder.append(MYSQLType.getColumnValueForCql(row, i, columnHandle.getMySQLType()));
+                }
+                TupleDomain tupleDomain = TupleDomain.withFixedValues(map);
+                String partitionId = stringBuilder.toString();
+                if (uniquePartitionIds.add(partitionId)) {
+                    partitions.add(new MySQLPartition(partitionId, tupleDomain));
+                }
+            }
+        }
+        catch (Exception e) {
+          e.printStackTrace();
+        }
+        return partitions.build();
+    }
+
+    protected ResultSet queryPartitionKeys(MySQLTable table, List<Comparable<?>> filterPrefix)
+    {
+        MySQLTableHandle tableHandle = table.getTableHandle();
+        List<MySQLColumnHandle> partitionKeyColumns = table.getPartitionKeyColumns();
+        boolean fullPartitionKey = filterPrefix.size() == partitionKeyColumns.size();
+        ResultSet countRS = null;
+        ResultSet partitionKey = null;
+        try {
+            if (!fullPartitionKey) {
+                Select countAll = MySQLUtils.selectCountAllFrom(tableHandle).limit(limitForPartitionKeySelect);
+                countRS = session.createStatement().executeQuery(countAll.getQueryString());
+            }
+            else {
+                // no need to count if partition key is completely known
+                countRS = null;
+            }
+
+            int limit = fullPartitionKey ? 1 : limitForPartitionKeySelect;
+            Select partitionKeys = MySQLUtils.selectDistinctFrom(tableHandle, partitionKeyColumns);
+            partitionKeys.limit(limit);
+            partitionKeys.setFetchSize(fetchSizeForPartitionKeySelect);
+            addWhereClause(partitionKeys.where(), partitionKeyColumns, filterPrefix);
+            partitionKey = session.createStatement().executeQuery(partitionKeys.getQueryString());
+            if (!fullPartitionKey) {
+                long count;
+                count = countRS.getLong("COUNT(*)");
+                if (count == limitForPartitionKeySelect) {
+                    partitionKey.cancelRowUpdates();
+                    return null; // too much effort to query all partition keys
+                }
+            }
+        }
+        catch (Exception e) {
+          e.printStackTrace();
+        }
+        return partitionKey;
+    }
+
+    private void addWhereClause(Where where, List<MySQLColumnHandle> partitionKeyColumns, List<Comparable<?>> filterPrefix)
+    {
+        for (int i = 0; i < filterPrefix.size(); i++) {
+            MySQLColumnHandle column = partitionKeyColumns.get(i);
+            Object value = column.getMySQLType().getJavaValue(filterPrefix.get(i));
+            Clause clause = QueryBuilder.eq(MySQLUtils.validColumnName(column.getName()), value);
+            where.and(clause);
+        }
     }
 }
