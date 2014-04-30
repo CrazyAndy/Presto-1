@@ -17,6 +17,9 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.utils.Bytes;
 import com.facebook.presto.mysql.util.MySQLUtils;
 import com.facebook.presto.spi.ColumnType;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Types;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -26,6 +29,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public enum MYSQLType
@@ -187,6 +191,8 @@ public enum MYSQLType
                 case CHAR:
                 case TEXT:
                 case VARCHAR:
+                case NVARCHAR:
+                case LONGVARCHAR:
                     return row.getString(i);
                 case INT:
                     return (long) row.getInt(i);
@@ -222,6 +228,59 @@ public enum MYSQLType
                 case MAP:
                     checkTypeArguments(mySQLType, 2, typeArguments);
                     return buildMapValue(row, i, typeArguments.get(0), typeArguments.get(1));
+                default:
+                    throw new IllegalStateException("Handling of type " + mySQLType
+                            + " is not implemented");
+            }
+        }
+    }
+
+    public static Comparable<?> getMySQLColumnValue(ResultSet rows, int i, MYSQLType mySQLType,
+            List<MYSQLType> typeArguments)
+    {
+        String pKeyValue = null;
+        try {
+          pKeyValue = rows.getString(i);
+        }
+        catch (SQLException e) {
+           e.printStackTrace();
+        }
+        if (pKeyValue == null) {
+            return null;
+        }
+        else {
+            switch (mySQLType) {
+                case CHAR:
+                case TEXT:
+                case VARCHAR:
+                    return pKeyValue;
+                case INT:
+                case INTEGER:
+                case SMALLINT:
+                case TINYINT:
+                case BIGINT:
+                case COUNTER:
+                    return Long.parseLong(pKeyValue);
+                case BOOLEAN:
+                    return Boolean.parseBoolean(pKeyValue);
+                case DOUBLE:
+                    return Double.parseDouble(pKeyValue);
+                case FLOAT:
+                    return Double.parseDouble(pKeyValue);
+                case DECIMAL:
+                    return new BigDecimal(pKeyValue).doubleValue();
+                case UUID:
+                case TIMEUUID:
+                    return pKeyValue;
+                case TIME:
+                case DATE:
+                case TIMESTAMP:
+                    return new Date(Long.parseLong(pKeyValue)).getTime();
+                case VARINT:
+                    return new BigInteger(pKeyValue).toString();
+                case BLOB:
+                case CUSTOM:
+                    return Bytes.toHexString(pKeyValue.getBytes());
                 default:
                     throw new IllegalStateException("Handling of type " + mySQLType
                             + " is not implemented");
@@ -319,6 +378,23 @@ public enum MYSQLType
                     throw new IllegalStateException("Handling of type " + cassandraType
                             + " is not implemented");
             }
+        }
+    }
+
+    public static String getMySQLColumnStringValue(ResultSet rows, int i, MYSQLType mySQLType)
+    {
+        String pKeyValue = null;
+        try {
+          pKeyValue = rows.getString(i);
+        }
+        catch (SQLException e) {
+           e.printStackTrace();
+        }
+        if (pKeyValue == null) {
+            return null;
+        }
+        else {
+            return MySQLUtils.quoteStringLiteral(pKeyValue);
         }
     }
 

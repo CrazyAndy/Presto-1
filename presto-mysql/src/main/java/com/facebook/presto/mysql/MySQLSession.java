@@ -257,15 +257,14 @@ public class MySQLSession
                 stringBuilder.setLength(0);
                 for (int i = 0; i < partitionKeyColumns.size(); i++) {
                     MySQLColumnHandle columnHandle = partitionKeyColumns.get(i);
-                    //Comparable<?> keyPart = MYSQLType.getColumnValue(row, i, columnHandle.getMySQLType(), columnHandle.getTypeArguments());
-                    Comparable<?> keyPart = null;
+                    Comparable<?> keyPart = MYSQLType.getMySQLColumnValue(rows, i + 1, columnHandle.getMySQLType(), columnHandle.getTypeArguments());
                     map.put(columnHandle, keyPart);
                     if (i > 0) {
                         stringBuilder.append(" AND ");
                     }
                     stringBuilder.append(MySQLUtils.validColumnName(columnHandle.getName()));
                     stringBuilder.append(" = ");
-                    //stringBuilder.append(MYSQLType.getColumnValueForCql(row, i, columnHandle.getMySQLType()));
+                    stringBuilder.append(MYSQLType.getMySQLColumnStringValue(rows, i + 1, columnHandle.getMySQLType()));
                 }
                 TupleDomain tupleDomain = TupleDomain.withFixedValues(map);
                 String partitionId = stringBuilder.toString();
@@ -305,7 +304,8 @@ public class MySQLSession
             partitionKey = session.createStatement().executeQuery(partitionKeys.getQueryString());
             if (!fullPartitionKey) {
                 long count;
-                count = countRS.getLong("COUNT(*)");
+                countRS.first();
+                count = countRS.getLong("count(*)");
                 if (count == limitForPartitionKeySelect) {
                     partitionKey.cancelRowUpdates();
                     return null; // too much effort to query all partition keys
