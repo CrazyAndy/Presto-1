@@ -394,7 +394,42 @@ public enum MYSQLType
             return null;
         }
         else {
-            return MySQLUtils.quoteStringLiteral(pKeyValue);
+          switch (mySQLType) {
+            case CHAR:
+            case TEXT:
+            case VARCHAR:
+                return MySQLUtils.quoteStringLiteral(pKeyValue);
+            case INT:
+            case INTEGER:
+            case SMALLINT:
+            case TINYINT:
+            case BIGINT:
+            case COUNTER:
+                return Long.toString(Long.parseLong(pKeyValue));
+            case BOOLEAN:
+                return Boolean.toString(Boolean.parseBoolean(pKeyValue));
+            case DOUBLE:
+                return Double.toString(Double.parseDouble(pKeyValue));
+            case FLOAT:
+                return Double.toString(Double.parseDouble(pKeyValue));
+            case DECIMAL:
+                return Double.toString(new BigDecimal(pKeyValue).doubleValue());
+            case UUID:
+            case TIMEUUID:
+                return pKeyValue;
+            case TIME:
+            case DATE:
+            case TIMESTAMP:
+                return Long.toString(new Date(Long.parseLong(pKeyValue)).getTime());
+            case VARINT:
+                return new BigInteger(pKeyValue).toString();
+            case BLOB:
+            case CUSTOM:
+                return Bytes.toHexString(pKeyValue.getBytes());
+            default:
+                throw new IllegalStateException("Handling of type " + mySQLType
+                        + " is not implemented");
+        }
         }
     }
 
