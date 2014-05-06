@@ -391,7 +391,7 @@ public enum MYSQLType
            e.printStackTrace();
         }
         if (pKeyValue == null) {
-            return null;
+            return "NULL";
         }
         else {
           switch (mySQLType) {
