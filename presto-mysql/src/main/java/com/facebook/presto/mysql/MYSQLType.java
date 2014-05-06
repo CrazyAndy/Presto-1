@@ -338,13 +338,13 @@ public enum MYSQLType
         }
     }
 
-    public static String getColumnValueForCql(Row row, int i, MYSQLType cassandraType)
+    public static String getColumnValueForCql(Row row, int i, MYSQLType mySQLType)
     {
         if (row.isNull(i)) {
             return null;
         }
         else {
-            switch (cassandraType) {
+            switch (mySQLType) {
                 case CHAR:
                 case TEXT:
                 case VARCHAR:
@@ -375,7 +375,7 @@ public enum MYSQLType
                 case CUSTOM:
                     return Bytes.toHexString(row.getBytesUnsafe(i));
                 default:
-                    throw new IllegalStateException("Handling of type " + cassandraType
+                    throw new IllegalStateException("Handling of type " + mySQLType
                             + " is not implemented");
             }
         }

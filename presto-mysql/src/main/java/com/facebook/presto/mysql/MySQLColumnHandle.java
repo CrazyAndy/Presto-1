@@ -46,7 +46,7 @@ public class MySQLColumnHandle
             @JsonProperty("connectorId") String connectorId,
             @JsonProperty("name") String name,
             @JsonProperty("ordinalPosition") int ordinalPosition,
-            @JsonProperty("mysqlType") MYSQLType mysqlType,
+            @JsonProperty("mySQLType") MYSQLType mysqlType,
             @Nullable @JsonProperty("typeArguments") List<MYSQLType> typeArguments,
             @JsonProperty("partitionKey") boolean partitionKey,
             @JsonProperty("clusteringKey") boolean clusteringKey)

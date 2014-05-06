@@ -13,12 +13,12 @@
  */
 package com.facebook.presto.mysql;
 
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
 import com.facebook.presto.spi.ColumnType;
 import com.facebook.presto.spi.RecordCursor;
 import com.google.common.base.Charsets;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 
 public class MySQLRecordCursor
@@ -26,7 +26,6 @@ public class MySQLRecordCursor
 {
     private final List<FullMySQLType> fullMySQLTypes;
     private final ResultSet rs;
-    private Row currentRow;
     private long atLeastCount;
     private long count;
 
@@ -35,20 +34,18 @@ public class MySQLRecordCursor
     {
         this.fullMySQLTypes = fullMySQLTypes;
         rs = (ResultSet) mySQLSession.executeQuery(cql);
-        currentRow = null;
-        atLeastCount = rs.getAvailableWithoutFetching();
     }
 
     @Override
     public boolean advanceNextPosition()
     {
-        if (!rs.isExhausted()) {
-            currentRow = rs.one();
-            count++;
-            atLeastCount = count + rs.getAvailableWithoutFetching();
-            return true;
+        try {
+           return rs.next();
         }
-        return false;
+        catch (SQLException e) {
+           e.printStackTrace();
+           return false;
+        }
     }
 
     @Override
@@ -59,7 +56,13 @@ public class MySQLRecordCursor
     @Override
     public boolean getBoolean(int i)
     {
-        return currentRow.getBool(i);
+        try {
+           return rs.getBoolean(i);
+        }
+        catch (SQLException e) {
+          e.printStackTrace();
+          return false;
+        }
     }
 
     @Override
@@ -79,11 +82,22 @@ public class MySQLRecordCursor
     {
         switch (getMySQLType(i)) {
             case DOUBLE:
-                return currentRow.getDouble(i);
-            case FLOAT:
-                return currentRow.getFloat(i);
             case DECIMAL:
-                return currentRow.getDecimal(i).doubleValue();
+            try {
+                return rs.getDouble(i);
+            }
+            catch (SQLException e) {
+               e.printStackTrace();
+               throw new IllegalStateException("Cannot retrieve double for " + getMySQLType(i));
+            }
+            case FLOAT:
+            try {
+               return rs.getFloat(i);
+            }
+            catch (SQLException e) {
+              e.printStackTrace();
+              throw new IllegalStateException("Cannot retrieve double for " + getMySQLType(i));
+            }
             default:
                 throw new IllegalStateException("Cannot retrieve double for " + getMySQLType(i));
         }
@@ -92,16 +106,23 @@ public class MySQLRecordCursor
     @Override
     public long getLong(int i)
     {
-        switch (getMySQLType(i)) {
+        int x = i + 1;
+        try {
+          switch (getMySQLType(i)) {
             case INT:
-                return currentRow.getInt(i);
+                return rs.getInt(x);
             case BIGINT:
             case COUNTER:
-                return currentRow.getLong(i);
+                return rs.getLong(x);
             case TIMESTAMP:
-                return currentRow.getDate(i).getTime();
+                return rs.getDate(x).getTime();
             default:
                 throw new IllegalStateException("Cannot retrieve long for " + getMySQLType(i));
+           }
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+            throw new IllegalStateException("Cannot retrieve long for " + getMySQLType(i));
         }
     }
 
@@ -113,7 +134,8 @@ public class MySQLRecordCursor
     @Override
     public byte[] getString(int i)
     {
-        String str = MYSQLType.getColumnValue(currentRow, i, fullMySQLTypes.get(i)).toString();
+        int x = i + 1;
+        String str = MYSQLType.getMySQLColumnStringValue(rs, x, getMySQLType(i));
         return str.getBytes(Charsets.UTF_8);
     }
 
@@ -132,6 +154,6 @@ public class MySQLRecordCursor
     @Override
     public boolean isNull(int i)
     {
-        return currentRow.isNull(i);
+        return (rs == null);
     }
 }
