@@ -138,7 +138,13 @@ public final class MySQLUtils
     public static Select from(Selection selection, MySQLTableHandle tableHandle)
     {
         String schema = validSchemaName(tableHandle.getSchemaName());
-        String table = validTableName(tableHandle.getTableName());
+        String table = "";
+        if (schema.equalsIgnoreCase("information_schema")) {
+            table = tableHandle.getTableName();
+        }
+        else {
+            table = validTableName(tableHandle.getTableName());
+        }
         return selection.from(schema, table);
     }
 

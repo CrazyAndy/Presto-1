@@ -53,6 +53,7 @@ public enum MYSQLType
     TIMESTAMP(ColumnType.LONG, Date.class),
     TIME(ColumnType.LONG, Date.class),
     DATE(ColumnType.LONG, Date.class),
+    DATETIME(ColumnType.LONG, Date.class),
     UUID(ColumnType.STRING, java.util.UUID.class),
     TIMEUUID(ColumnType.STRING, java.util.UUID.class),
     VARCHAR(ColumnType.STRING, String.class),
@@ -110,6 +111,7 @@ public enum MYSQLType
             case "TIMESTAMP":
                 return TIMESTAMP;
             case "DATE":
+            case "DATETIME":
                 return DATE;
             case "VARCHAR":
                 return VARCHAR;
