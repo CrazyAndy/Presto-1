@@ -13,12 +13,8 @@
  */
 package com.facebook.presto.mysql;
 
-import com.datastax.driver.core.ConsistencyLevel;
 import javax.inject.Inject;
 
-import java.util.List;
-
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class MySQLSessionFactory

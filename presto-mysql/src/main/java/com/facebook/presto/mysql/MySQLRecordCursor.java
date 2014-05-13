@@ -135,9 +135,7 @@ public class MySQLRecordCursor
     public byte[] getString(int i)
     {
         int x = i + 1;
-        
         Comparable<?> value = MYSQLType.getMySQLColumnValue(rs, x, getMySQLType(i), null);
-        
         String str = value == null ? "" : value.toString();
         return str.getBytes(Charsets.UTF_8);
     }

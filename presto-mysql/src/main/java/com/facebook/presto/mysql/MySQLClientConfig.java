@@ -15,16 +15,11 @@ package com.facebook.presto.mysql;
 
 import com.datastax.driver.core.ConsistencyLevel;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableList;
 import io.airlift.configuration.Config;
 import io.airlift.units.Duration;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
-
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class MySQLClientConfig
@@ -150,59 +145,63 @@ public class MySQLClientConfig
     }
 
     @NotNull
-	public String getJdbcConnectionString()
+    public String getJdbcConnectionString()
     {
-		return jdbcConnectionString;
-	}
+      return jdbcConnectionString;
+    }
 
-	@Config("jdbc.connection-string")
-	public MySQLClientConfig setJdbcConnectionString(String jdbcUrl)
-	{
-		this.jdbcConnectionString = jdbcUrl;
-		return this;
-	}
+    @Config("jdbc.connection-string")
+    public MySQLClientConfig setJdbcConnectionString(String jdbcUrl)
+    {
+        this.jdbcConnectionString = jdbcUrl;
+        return this;
+    }
 
-	@NotNull
-	public String getJdbcClassName()
-	{
-		return jdbcClassName;
-	}
+    @NotNull
+    public String getJdbcClassName()
+    {
+      return jdbcClassName;
+    }
 
-	@Config("jdbc.class-name")
-	public void setJdbcClassName(String jdbcClassName)
-	{
-		this.jdbcClassName = jdbcClassName;
-	}
+    @Config("jdbc.class-name")
+    public void setJdbcClassName(String jdbcClassName)
+    {
+      this.jdbcClassName = jdbcClassName;
+    }
 
-	@NotNull
-	public String getJdbcUserName()
-	{
-		return jdbcUserName;
-	}
+    @NotNull
+    public String getJdbcUserName()
+    {
+        return jdbcUserName;
+    }
 
-	@Config("jdbc.user-name")
-	public void setJdbcUserName(String jdbcUserName)
-	{
-		this.jdbcUserName = jdbcUserName;
-	}
+    @Config("jdbc.user-name")
+    public void setJdbcUserName(String jdbcUserName)
+    {
+      this.jdbcUserName = jdbcUserName;
+    }
 
-	@NotNull
-	public String getJdbcPassword() {
-		return jdbcPassword;
-	}
+    @NotNull
+    public String getJdbcPassword()
+    {
+     return jdbcPassword;
+    }
 
-	@Config("jdbc.password")
-	public void setJdbcPassword(String jdbcPassword) {
-		this.jdbcPassword = jdbcPassword;
-	}
+    @Config("jdbc.password")
+    public void setJdbcPassword(String jdbcPassword)
+    {
+      this.jdbcPassword = jdbcPassword;
+    }
 
-	@NotNull
-	public String getConnectorName() {
-		return connectorName;
-	}
+    @NotNull
+    public String getConnectorName()
+    {
+      return connectorName;
+    }
 
-	@Config("database.type")
-	public void setConnectorName(String connectorString) {
-		this.connectorName = connectorString;
-	}
+    @Config("database.type")
+    public void setConnectorName(String connectorString)
+    {
+       this.connectorName = connectorString;
+    }
 }
