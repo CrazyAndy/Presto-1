@@ -43,8 +43,7 @@ public class MockMySQLSession
 
     public MockMySQLSession(String connectorId)
     {
-       super(connectorId, new MySQLClientConfig().getFetchSizeForPartitionKeySelect(),
-               new MySQLClientConfig().getLimitForPartitionKeySelect());
+       super(connectorId, new MySQLClientConfig());
        /* super(connectorId,
                 null,
                 new MySQLClientConfig().getFetchSizeForPartitionKeySelect(),

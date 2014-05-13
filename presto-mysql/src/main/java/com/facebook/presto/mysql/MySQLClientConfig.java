@@ -39,8 +39,11 @@ public class MySQLClientConfig
     private int unpartitionedSplits = 1_000;
     private ConsistencyLevel consistencyLevel = ConsistencyLevel.ONE;
     private int fetchSize = 5_000;
-    private List<String> contactPoints = ImmutableList.of();
-    private int nativeProtocolPort = 9042;
+    private String jdbcConnectionString;
+    private String jdbcClassName;
+    private String jdbcUserName;
+    private String jdbcPassword;
+    private String connectorName;
 
     @Min(0)
     public int getLimitForPartitionKeySelect()
@@ -108,39 +111,6 @@ public class MySQLClientConfig
     }
 
     @NotNull
-    @Size(min = 1)
-    public List<String> getContactPoints()
-    {
-        return contactPoints;
-    }
-
-    @Config("mysql.contact-points")
-    public MySQLClientConfig setContactPoints(String commaSeparatedList)
-    {
-        this.contactPoints = SPLITTER.splitToList(commaSeparatedList);
-        return this;
-    }
-
-    public MySQLClientConfig setContactPoints(String... contactPoints)
-    {
-        this.contactPoints = Arrays.asList(contactPoints);
-        return this;
-    }
-
-    @Min(1)
-    public int getNativeProtocolPort()
-    {
-        return nativeProtocolPort;
-    }
-
-    @Config(("mysql.native-protocol-port"))
-    public MySQLClientConfig setNativeProtocolPort(int nativeProtocolPort)
-    {
-        this.nativeProtocolPort = nativeProtocolPort;
-        return this;
-    }
-
-    @NotNull
     public ConsistencyLevel getConsistencyLevel()
     {
         return consistencyLevel;
@@ -178,4 +148,61 @@ public class MySQLClientConfig
         this.fetchSizeForPartitionKeySelect = fetchSizeForPartitionKeySelect;
         return this;
     }
+
+    @NotNull
+	public String getJdbcConnectionString()
+    {
+		return jdbcConnectionString;
+	}
+
+	@Config("jdbc.connection-string")
+	public MySQLClientConfig setJdbcConnectionString(String jdbcUrl)
+	{
+		this.jdbcConnectionString = jdbcUrl;
+		return this;
+	}
+
+	@NotNull
+	public String getJdbcClassName()
+	{
+		return jdbcClassName;
+	}
+
+	@Config("jdbc.class-name")
+	public void setJdbcClassName(String jdbcClassName)
+	{
+		this.jdbcClassName = jdbcClassName;
+	}
+
+	@NotNull
+	public String getJdbcUserName()
+	{
+		return jdbcUserName;
+	}
+
+	@Config("jdbc.user-name")
+	public void setJdbcUserName(String jdbcUserName)
+	{
+		this.jdbcUserName = jdbcUserName;
+	}
+
+	@NotNull
+	public String getJdbcPassword() {
+		return jdbcPassword;
+	}
+
+	@Config("jdbc.password")
+	public void setJdbcPassword(String jdbcPassword) {
+		this.jdbcPassword = jdbcPassword;
+	}
+
+	@NotNull
+	public String getConnectorName() {
+		return connectorName;
+	}
+
+	@Config("database.type")
+	public void setConnectorName(String connectorString) {
+		this.connectorName = connectorString;
+	}
 }

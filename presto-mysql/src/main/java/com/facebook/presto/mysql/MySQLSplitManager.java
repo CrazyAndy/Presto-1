@@ -167,29 +167,36 @@ public class MySQLSplitManager
         String tokenExpression = table.getTokenExpression();
 
         List<HostAddress> addresses = new HostAddressFactory().toHostAddressList(mySQLSession.getAllHosts());
-
-        BigInteger start = BigInteger.valueOf(Long.MIN_VALUE);
-        BigInteger end = BigInteger.valueOf(Long.MAX_VALUE);
-        BigInteger one = BigInteger.valueOf(1);
-        BigInteger splits = BigInteger.valueOf(unpartitionedSplits);
-        long delta = end.subtract(start).subtract(one).divide(splits).longValue();
-        long startToken = start.longValue();
-
         ImmutableList.Builder<Split> builder = ImmutableList.builder();
-        for (int i = 0; i < unpartitionedSplits - 1; i++) {
-            long endToken = startToken + delta;
-            String condition = buildTokenCondition(tokenExpression, startToken, endToken);
-
-            MySQLSplit split = new MySQLSplit(connectorId, schema, tableName, partitionId, condition, addresses);
-            builder.add(split);
-
-            startToken = endToken + 1;
+        
+        if (!partitionId.equalsIgnoreCase(MySQLPartition.UNPARTITIONED_ID))
+        {
+	        BigInteger start = BigInteger.valueOf(Long.MIN_VALUE);
+	        BigInteger end = BigInteger.valueOf(Long.MAX_VALUE);
+	        BigInteger one = BigInteger.valueOf(1);
+	        BigInteger splits = BigInteger.valueOf(unpartitionedSplits);
+	        long delta = end.subtract(start).subtract(one).divide(splits).longValue();
+	        long startToken = start.longValue();
+	
+	        for (int i = 0; i < unpartitionedSplits - 1; i++) {
+	            long endToken = startToken + delta;
+	            String condition = buildTokenCondition(tokenExpression, startToken, endToken);
+	
+	            MySQLSplit split = new MySQLSplit(connectorId, schema, tableName, partitionId, condition, addresses);
+	            builder.add(split);
+	
+	            startToken = endToken + 1;
+	        }
+	
+	        // special handling for last split
+	        String condition = buildTokenCondition(tokenExpression, startToken, end.longValue());
+	        MySQLSplit split = new MySQLSplit(connectorId, schema, tableName, partitionId, condition, addresses);
+	        builder.add(split);
         }
-
-        // special handling for last split
-        String condition = buildTokenCondition(tokenExpression, startToken, end.longValue());
-        MySQLSplit split = new MySQLSplit(connectorId, schema, tableName, partitionId, condition, addresses);
-        builder.add(split);
+        else
+        {
+        	builder.add(new MySQLSplit(connectorId, schema, tableName, partitionId, null, addresses));
+        }
 
         return builder.build();
     }

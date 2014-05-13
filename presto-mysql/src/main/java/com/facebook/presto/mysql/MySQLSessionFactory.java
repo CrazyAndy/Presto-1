@@ -24,13 +24,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class MySQLSessionFactory
 {
     private final MYSQLConnectorId connectorId;
-    private final List<String> contactPoints;
-
-    private final int fetchSize;
-    private final ConsistencyLevel consistencyLevel;
-    private final int fetchSizeForPartitionKeySelect;
-    private final int limitForPartitionKeySelect;
-    private final int nativeProtocolPort;
+    private final MySQLClientConfig config;
 
     @Inject
     public MySQLSessionFactory(MYSQLConnectorId connectorId, MySQLClientConfig config)
@@ -38,27 +32,11 @@ public class MySQLSessionFactory
         this.connectorId = checkNotNull(connectorId, "connectorId is null");
         checkNotNull(config, "config is null");
 
-        this.contactPoints = checkNotNull(config.getContactPoints(), "contactPoints is null");
-        checkArgument(contactPoints.size() > 0, "empty contactPoints");
-
-        nativeProtocolPort = config.getNativeProtocolPort();
-        fetchSize = config.getFetchSize();
-        consistencyLevel = config.getConsistencyLevel();
-        fetchSizeForPartitionKeySelect = config.getFetchSizeForPartitionKeySelect();
-        limitForPartitionKeySelect = config.getLimitForPartitionKeySelect();
+        this.config = config;
     }
 
     public MySQLSession create()
     {
-        /*Cluster.Builder clusterBuilder = Cluster.builder();
-        clusterBuilder.addContactPoints(contactPoints.toArray(new String[contactPoints.size()]));
-        clusterBuilder.withPort(nativeProtocolPort);
-        QueryOptions options = new QueryOptions();
-        options.setFetchSize(fetchSize);
-        options.setConsistencyLevel(consistencyLevel);
-        clusterBuilder.withQueryOptions(options);
-        Cluster cluster = clusterBuilder.build();
-        Session session = cluster.connect();*/
-        return new MySQLSession(connectorId.toString(), fetchSizeForPartitionKeySelect, limitForPartitionKeySelect);
+        return new MySQLSession(connectorId.toString(), config);
     }
 }

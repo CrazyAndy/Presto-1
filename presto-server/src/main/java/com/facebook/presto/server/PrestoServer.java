@@ -75,7 +75,7 @@ public class PrestoServer
         Bootstrap app = new Bootstrap(modules.build());
 
         try {
-            Injector injector = app.strictConfig().initialize();
+            Injector injector = app.initialize();
 
             if (!FloatingDecimal.isPatchInstalled()) {
                 log.warn("FloatingDecimal patch not installed. Parallelism will be diminished when parsing/formatting doubles");

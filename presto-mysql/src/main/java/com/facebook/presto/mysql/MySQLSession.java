@@ -18,7 +18,9 @@ import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -44,33 +46,60 @@ public class MySQLSession
     private Connection session = null;
     private Statement statement = null;
     protected final String connectorId;
-    private final String connectionString = "jdbc:mysql://localhost:3306";
-    private final String user = "root";
-    private final String password = "";
+    
     private final int limitForPartitionKeySelect;
     private final int fetchSizeForPartitionKeySelect;
+    private final String connector;
 
-    public MySQLSession(String connectorId, int fetchSizeForPartitionKeySelect, int limitForPartitionKeySelect)
+    public MySQLSession(String connectorId, MySQLClientConfig config)
     {
         this.connectorId = connectorId;
-        this.fetchSizeForPartitionKeySelect = fetchSizeForPartitionKeySelect;
-        this.limitForPartitionKeySelect = limitForPartitionKeySelect;
+        this.fetchSizeForPartitionKeySelect = config.getFetchSizeForPartitionKeySelect();
+        this.limitForPartitionKeySelect = config.getLimitForPartitionKeySelect();
+        this.connector = config.getConnectorName();
+        String className = config.getJdbcClassName();
+        String connectionString = config.getJdbcConnectionString();
+        
         try {
-          Class.forName("com.mysql.jdbc.Driver");
+          Class.forName(className);
         }
         catch (ClassNotFoundException e) {
-            System.out.println("MySQL JDBC Driver Not Found");
+            System.out.println("JDBC Driver Not Found: " + className);
             e.printStackTrace();
             return;
         }
+        
         try {
-            session = DriverManager.getConnection(connectionString, user , password);
+            session = DriverManager.getConnection(connectionString, config.getJdbcUserName() , config.getJdbcPassword());
         }
         catch (SQLException e) {
             System.out.println("Connection Failed! Check output console");
+            System.out.println("Connection String:" + connectionString);
             e.printStackTrace();
             return;
         }
+        
+//        PreparedStatement psSelectRecord=null;
+//        ResultSet rsSelectRecord=null;
+//    
+//        String sqlSelectRecord ="select user_slctd_id,user_id from dw_users where user_slctd_id = 'ukonestoppcshop'";
+//        
+//        
+//        try {
+//			psSelectRecord= session.prepareStatement(sqlSelectRecord);
+//			//psSelectRecord.setString(1,"Marketing");
+//			rsSelectRecord=psSelectRecord.executeQuery();                
+//			//Extact result from ResultSet rsSelectRecord
+//			while(rsSelectRecord.next()){
+//			    System.out.println("user_name= "+rsSelectRecord.getString("user_slctd_id")+" user_id= "+rsSelectRecord.getString("user_id"));                             
+//			  }
+//			// close ResultSet rsSelectRecord
+//			rsSelectRecord.close();
+//		} catch (SQLException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+
     }
 
     public ResultSet executeQuery(String cql)
@@ -119,27 +148,64 @@ public class MySQLSession
     public Iterable<String> getAllSchemas()
     {
         List<String> schemas = new ArrayList<String>();
-        try {
-            ResultSet rs = session.getMetaData().getCatalogs();
-            while (rs.next()) {
-              schemas.add(rs.getString("TABLE_CAT"));
-            }
-           }
-           catch (Exception e) {
-            e.printStackTrace();
-           }
-           return schemas;
+        
+        try
+        {
+        	ResultSet rs = null;
+			switch (this.connector) {
+			case "mysql":
+
+				rs = session.getMetaData().getCatalogs();
+				while (rs.next())
+					schemas.add(rs.getString("TABLE_CAT"));
+
+				break;
+
+			case "teradata":
+
+				String dbsQuery = "select DatabaseName from dbc.databases";
+				rs = this.executeQuery(dbsQuery);
+
+				while (rs.next())
+					schemas.add(rs.getString(1).trim());
+				
+				break;
+			}
+        }
+        catch (Exception e)
+        {
+        	e.printStackTrace();
+        }
+        
+        return schemas;
     }
 
     public List<String> getAllTables(String caseSensitiveDatabaseName)
     {
         List<String> tables = new ArrayList<String>();
         try {
-            DatabaseMetaData md = session.getMetaData();
-            ResultSet rs = md.getTables(caseSensitiveDatabaseName, null, "%", null);
-            while (rs.next()) {
-              tables.add(rs.getString(3));
-            }
+        	ResultSet rs = null;
+        	
+    		switch (this.connector) {
+			case "mysql":
+				DatabaseMetaData md = session.getMetaData();
+	            rs = md.getTables(caseSensitiveDatabaseName, null, "%", null);
+	            while (rs.next()) {
+	              tables.add(rs.getString(3));
+	            }
+	            
+				break;
+
+			case "teradata":
+	            String tablesQuery = "select TableName from dbc.tables where DatabaseName = '" + caseSensitiveDatabaseName + "'";
+	            rs = this.executeQuery(tablesQuery);
+	            
+	            while (rs.next()) {            	
+	              tables.add(rs.getString(1).trim());
+	            }
+				
+				break;
+			}
            }
            catch (Exception e) {
             e.printStackTrace();
@@ -162,49 +228,75 @@ public class MySQLSession
     {
        MySQLTableHandle tableHandle = new MySQLTableHandle(connectorId, tableName.getSchemaName(), tableName.getTableName());
        List<MySQLColumnHandle> columnHandles = new ArrayList<MySQLColumnHandle>();
+       int index = 0;
+       ResultSet rset = null;
+       String colName;
+       String colType;
+       
        try {
-           // add primary keys first
-           Set<String> primaryKeySet = new HashSet<>();
-           int index = 0;
-           Statement pKeySt = session.createStatement();
-           String pKeyQuerySt = "select COLUMN_NAME, DATA_TYPE from information_schema.COLUMNS where (TABLE_SCHEMA = '" + tableName.getSchemaName() + "') AND (TABLE_NAME= '" + tableName.getTableName() + "') AND (COLUMN_KEY='PRI')";
-           ResultSet rsetPKQuery = pKeySt.executeQuery(pKeyQuerySt);
-           String colName = null;
-           String colType = null;
-           while (rsetPKQuery.next()) {
-               colName = rsetPKQuery.getString("COLUMN_NAME");
-               colType = rsetPKQuery.getString("DATA_TYPE");
-               primaryKeySet.add(colName);
-               MySQLColumnHandle columnHandle = buildColumnHandle(colName, colType, true, false, index++);
-               columnHandles.add(columnHandle);
-           }
-           //add other columns next
-           Statement st = session.createStatement();
-           /*String querySt = "SELECT * FROM " + tableName.getSchemaName() + "." + tableName.getTableName();
-           ResultSet rset = st.executeQuery(querySt);
-           ResultSetMetaData md = rset.getMetaData();
-           for (int i = 1; i <= md.getColumnCount(); i++) {
-             colName = md.getColumnName(i);
-             colType = md.getColumnTypeName(i);
-             colTypeNum = md.getColumnType(i);
-             System.out.println(colType);
-             System.out.println(colName);
-             System.out.println(colTypeNum);
-             if (primaryKeySet.contains(colName)) {
-               continue;
-             }
-             MySQLColumnHandle columnHandle = buildColumnHandle(colName, colTypeNum, false, false, index++);*/
-             String querySt = "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" + tableName.getSchemaName() + "' AND TABLE_NAME = '" + tableName.getTableName() + "'";
-             ResultSet rset = st.executeQuery(querySt);
-             while (rset.next()) {
-                 colName = rset.getString("COLUMN_NAME");
-                 colType = rset.getString("DATA_TYPE");
-                 if (primaryKeySet.contains(colName)) {
-                   continue;
-                 }
-                 MySQLColumnHandle columnHandle = buildColumnHandle(colName, colType, false, false, index++);
-                 columnHandles.add(columnHandle);
-             }
+      
+	   		switch (this.connector) {
+			case "mysql":
+				// add primary keys first
+		           Set<String> primaryKeySet = new HashSet<>();
+		           
+		           Statement pKeySt = session.createStatement();
+		           String pKeyQuerySt = "select COLUMN_NAME, DATA_TYPE from information_schema.COLUMNS where (TABLE_SCHEMA = '" + tableName.getSchemaName() + "') AND (TABLE_NAME= '" + tableName.getTableName() + "') AND (COLUMN_KEY='PRI')";
+		           ResultSet rsetPKQuery = pKeySt.executeQuery(pKeyQuerySt);
+		           
+		           while (rsetPKQuery.next()) {
+		               colName = rsetPKQuery.getString("COLUMN_NAME");
+		               colType = rsetPKQuery.getString("DATA_TYPE");
+		               primaryKeySet.add(colName);
+		               MySQLColumnHandle columnHandle = buildColumnHandle(colName, colType, true, false, index++);
+		               columnHandles.add(columnHandle);
+		           }
+		           //add other columns next
+		           Statement st = session.createStatement();
+		           /*String querySt = "SELECT * FROM " + tableName.getSchemaName() + "." + tableName.getTableName();
+		           ResultSet rset = st.executeQuery(querySt);
+		           ResultSetMetaData md = rset.getMetaData();
+		           for (int i = 1; i <= md.getColumnCount(); i++) {
+		             colName = md.getColumnName(i);
+		             colType = md.getColumnTypeName(i);
+		             colTypeNum = md.getColumnType(i);
+		             System.out.println(colType);
+		             System.out.println(colName);
+		             System.out.println(colTypeNum);
+		             if (primaryKeySet.contains(colName)) {
+		               continue;
+		             }
+		             MySQLColumnHandle columnHandle = buildColumnHandle(colName, colTypeNum, false, false, index++);*/
+		             String querySt = "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" + tableName.getSchemaName() + "' AND TABLE_NAME = '" + tableName.getTableName() + "'";
+		             rset = st.executeQuery(querySt);
+		             while (rset.next()) {
+		                 colName = rset.getString("COLUMN_NAME");
+		                 colType = rset.getString("DATA_TYPE");
+		                 if (primaryKeySet.contains(colName)) {
+		                   continue;
+		                 }
+		                 MySQLColumnHandle columnHandle = buildColumnHandle(colName, colType, false, false, index++);
+		                 columnHandles.add(columnHandle);
+		             }
+	
+				break;
+	
+			case "teradata":
+		             
+				querySt = String.format("SELECT top 1 * FROM %s.%s", tableName.getSchemaName(), tableName.getTableName());
+	            rset = this.executeQuery(querySt);
+	            ResultSetMetaData rmeta = rset.getMetaData();
+	            
+	            int count = rmeta.getColumnCount();
+	            
+	            for (int i = 1; i <= count; i++)
+	            {
+	            	MySQLColumnHandle columnHandle = buildColumnHandle(rmeta.getColumnName(i), rmeta.getColumnTypeName(i), false, false, index++);
+	                columnHandles.add(columnHandle);	            	
+	            }
+
+				break;
+			} 
        }
        catch (Exception e) {
            e.printStackTrace();
