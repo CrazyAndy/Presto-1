@@ -56,6 +56,8 @@ public class MySQLSplitManager
     private final MySQLSession mySQLSession;
     private final CachingMySQLSchemaProvider schemaProvider;
     private final int unpartitionedSplits;
+    private final String connector;
+    private final String[] clusterNodes;
 
     @Inject
     public MySQLSplitManager(MYSQLConnectorId connectorId,
@@ -67,6 +69,8 @@ public class MySQLSplitManager
         this.schemaProvider = checkNotNull(schemaProvider, "schemaProvider is null");
         this.mySQLSession = checkNotNull(mySQLSession, "mySQLSession is null");
         this.unpartitionedSplits = mySQLClientConfig.getUnpartitionedSplits();
+        this.connector = mySQLClientConfig.getConnectorName();
+        this.clusterNodes = mySQLClientConfig.getClusterNodes();
     }
 
     @Override
@@ -86,6 +90,12 @@ public class MySQLSplitManager
     {
         checkNotNull(tableHandle, "tableHandle is null");
         checkNotNull(tupleDomain, "tupleDomain is null");
+        
+        if (this.connector.equalsIgnoreCase("mysql"))
+        {
+        	return new PartitionResult(ImmutableList.of((Partition)MySQLPartition.UNPARTITIONED), tupleDomain);
+        }
+        
         MySQLTableHandle mySQLTableHandle = (MySQLTableHandle) tableHandle;
 
         MySQLTable table = schemaProvider.getTable(mySQLTableHandle);
@@ -137,6 +147,7 @@ public class MySQLSplitManager
     {
         checkNotNull(tableHandle, "tableHandle is null");
         checkArgument(tableHandle instanceof MySQLTableHandle, "tableHandle is not an instance of CassandraTableHandle");
+        
         MySQLTableHandle mySQLTableHandle = (MySQLTableHandle) tableHandle;
 
         checkNotNull(partitions, "partitions is null");
@@ -166,7 +177,8 @@ public class MySQLSplitManager
         String tableName = table.getTableHandle().getTableName();
         String tokenExpression = table.getTokenExpression();
 
-        List<HostAddress> addresses = new HostAddressFactory().toHostAddressList(mySQLSession.getAllHosts());
+        List<HostAddress> addresses = new ArrayList<HostAddress>();
+        
         ImmutableList.Builder<Split> builder = ImmutableList.builder();
         if (!partitionId.equalsIgnoreCase(MySQLPartition.UNPARTITIONED_ID)) {
             BigInteger start = BigInteger.valueOf(Long.MIN_VALUE);
@@ -188,8 +200,20 @@ public class MySQLSplitManager
             MySQLSplit split = new MySQLSplit(connectorId, schema, tableName, partitionId, condition, addresses);
             builder.add(split);
         }
-        else {
+        else if (this.clusterNodes == null || this.clusterNodes.length == 0)
+        {
           builder.add(new MySQLSplit(connectorId, schema, tableName, partitionId, null, addresses));
+        }
+        else
+        {
+        	for(String node : this.clusterNodes)
+        	{
+        		List<HostAddress> addr = new ArrayList<HostAddress>();
+        		
+        		addr.add(HostAddress.fromString(node));
+        		System.out.println("Adding split to" + addr);
+        		builder.add(new MySQLSplit(connectorId, schema, tableName, partitionId, null, addr));
+        	}
         }
 
         return builder.build();
@@ -210,9 +234,7 @@ public class MySQLSplitManager
             checkArgument(partition instanceof MySQLPartition, "partitions are no MySQLPartitions");
             MySQLPartition mySQLPartition = (MySQLPartition) partition;
 
-            Set<MySQLHost> hosts = mySQLSession.getReplicas(schema);
-            List<HostAddress> addresses = hostAddressFactory.toHostAddressList(hosts);
-            MySQLSplit split = new MySQLSplit(connectorId, schema, table, mySQLPartition.getPartitionId(), null, addresses);
+            MySQLSplit split = new MySQLSplit(connectorId, schema, table, mySQLPartition.getPartitionId(), null, new ArrayList<HostAddress>());
             builder.add(split);
         }
         return builder.build();

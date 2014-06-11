@@ -142,11 +142,6 @@ public class MockMySQLSession
         throw new IllegalStateException();
     }*/
 
-    @Override
-    public Set<MySQLHost> getReplicas(String schema)
-    {
-        throw new UnsupportedOperationException();
-    }
 
 /*    @Override
     public ResultSet executeQuery(String cql)

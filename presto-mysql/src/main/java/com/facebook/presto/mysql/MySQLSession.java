@@ -42,6 +42,9 @@ import com.google.common.collect.ImmutableList;
 
 public class MySQLSession
 {
+	private static final String MYSQL = "mysql";
+	private static final String TERADATA = "teradata";
+	
     private Connection session = null;
     private Statement statement = null;
     protected final String connectorId;
@@ -74,24 +77,6 @@ public class MySQLSession
             e.printStackTrace();
             return;
         }
-//        PreparedStatement psSelectRecord=null;
-//        ResultSet rsSelectRecord=null;
-//        String sqlSelectRecord ="select user_slctd_id,user_id from dw_users where user_slctd_id = 'ukonestoppcshop'";
-//        try {
-//          psSelectRecord= session.prepareStatement(sqlSelectRecord);
-//          //psSelectRecord.setString(1,"Marketing");
-//          rsSelectRecord=psSelectRecord.executeQuery();
-//          //Extact result from ResultSet rsSelectRecord
-//          while(rsSelectRecord.next()){
-//          System.out.println("user_name= "+rsSelectRecord.getString("user_slctd_id")+" user_id= "+rsSelectRecord.getString("user_id"));
-//          }
-//          // close ResultSet rsSelectRecord
-//          rsSelectRecord.close();
-//        } catch (SQLException e) {
-//          // TODO Auto-generated catch block
-//          e.printStackTrace();
-//        }
-
     }
 
     public ResultSet executeQuery(String cql)
@@ -111,45 +96,19 @@ public class MySQLSession
         }
     }
 
-    public Collection<MySQLHost> getAllHosts()
-    {
-       List<MySQLHost> hosts = new ArrayList<MySQLHost>();
-       try {
-        MySQLHost localHost = new MySQLHost(InetAddress.getLocalHost());
-        hosts.add(localHost);
-       }
-       catch (UnknownHostException e) {
-        e.printStackTrace();
-       }
-       return hosts;
-    }
-
-    public Set<MySQLHost> getReplicas(String schema)
-    {
-        Set<MySQLHost> hosts = new HashSet<MySQLHost>();
-        try {
-         MySQLHost localHost = new MySQLHost(InetAddress.getLocalHost());
-         hosts.add(localHost);
-        }
-        catch (UnknownHostException e) {
-         e.printStackTrace();
-        }
-        return hosts;
-    }
-
     public Iterable<String> getAllSchemas()
     {
         List<String> schemas = new ArrayList<String>();
         try {
             ResultSet rs = null;
             switch (this.connector) {
-            case "mysql":
+            case MYSQL:
                 rs = session.getMetaData().getCatalogs();
                 while (rs.next()) {
                   schemas.add(rs.getString("TABLE_CAT"));
                 }
                 break;
-             case "teradata":
+             case TERADATA:
                 String dbsQuery = "select DatabaseName from dbc.databases";
                 rs = this.executeQuery(dbsQuery);
                 while (rs.next()) {
@@ -170,16 +129,17 @@ public class MySQLSession
         try {
             ResultSet rs = null;
             switch (this.connector) {
-            case "mysql":
+            case MYSQL:
                 DatabaseMetaData md = session.getMetaData();
                 rs = md.getTables(caseSensitiveDatabaseName, null, "%", null);
                 while (rs.next()) {
                    tables.add(rs.getString(3));
                 }
                 break;
-             case "teradata":
+             case TERADATA:
                 String tablesQuery = "select TableName from dbc.tables where DatabaseName = '" + caseSensitiveDatabaseName + "'";
                 rs = this.executeQuery(tablesQuery);
+                
                 while (rs.next()) {
                   tables.add(rs.getString(1).trim());
                 }
@@ -213,7 +173,7 @@ public class MySQLSession
        String colType;
        try {
           switch (this.connector) {
-              case "mysql":
+              case MYSQL:
                    // add primary keys first
                    Set<String> primaryKeySet = new HashSet<>();
                    Statement pKeySt = session.createStatement();
@@ -244,7 +204,8 @@ public class MySQLSession
                      MySQLColumnHandle columnHandle = buildColumnHandle(colName, colTypeNum, false, false, index++);*/
                      String querySt = "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" + tableName.getSchemaName() + "' AND TABLE_NAME = '" + tableName.getTableName() + "'";
                      rset = st.executeQuery(querySt);
-                     while (rset.next()) {
+                     while (rset.next())
+                     {
                          colName = rset.getString("COLUMN_NAME");
                          colType = rset.getString("DATA_TYPE");
                          if (primaryKeySet.contains(colName)) {
@@ -254,13 +215,25 @@ public class MySQLSession
                          columnHandles.add(columnHandle);
                      }
                 break;
-           case "teradata":
+           case TERADATA:
+        	    querySt = String.format("SELECT distinct ColumnName FROM dbc.indices where TableName = '%s' and IndexType = 'P'", tableName.getTableName());
+                rset = this.executeQuery(querySt);
+                
+                Set<String> partitionKeyNames = new HashSet<String>();
+                
+                while (rset.next())
+                {
+                	partitionKeyNames.add(rset.getString(1).trim());
+                }
+        	    
                 querySt = String.format("SELECT top 1 * FROM %s.%s", tableName.getSchemaName(), tableName.getTableName());
                 rset = this.executeQuery(querySt);
                 ResultSetMetaData rmeta = rset.getMetaData();
                 int count = rmeta.getColumnCount();
                 for (int i = 1; i <= count; i++) {
-                    MySQLColumnHandle columnHandle = buildColumnHandle(rmeta.getColumnName(i), rmeta.getColumnTypeName(i), false, false, index++);
+                	String name = rmeta.getColumnName(i);
+                	
+                    MySQLColumnHandle columnHandle = buildColumnHandle(name, rmeta.getColumnTypeName(i), partitionKeyNames.contains(name), false, index++);
                     columnHandles.add(columnHandle);
                 }
                 break;
@@ -296,6 +269,12 @@ public class MySQLSession
 
     public List<MySQLPartition> getPartitions(MySQLTable table, List<Comparable<?>> filterPrefix)
     {
+    	if (this.connector.equalsIgnoreCase(MYSQL))
+    	{
+    		// for our mysql cluster, we don't partition, presto worker should run on each of mysql machines.
+    		return ImmutableList.of(MySQLPartition.UNPARTITIONED); 
+    	}
+    	
         ResultSet rows = queryPartitionKeys(table, filterPrefix);
         if (rows == null) {
             // just split the whole partition range
@@ -341,6 +320,12 @@ public class MySQLSession
 
     protected ResultSet queryPartitionKeys(MySQLTable table, List<Comparable<?>> filterPrefix)
     {
+    	if (filterPrefix.isEmpty())
+    	{
+    		return null;
+    		
+    	}
+    	
         MySQLTableHandle tableHandle = table.getTableHandle();
         List<MySQLColumnHandle> partitionKeyColumns = table.getPartitionKeyColumns();
         boolean fullPartitionKey = filterPrefix.size() == partitionKeyColumns.size();
@@ -348,29 +333,35 @@ public class MySQLSession
         ResultSet partitionKey = null;
         try {
             if (!fullPartitionKey) {
-                Select countAll = MySQLUtils.selectCountAllFrom(tableHandle).limit(limitForPartitionKeySelect);
+                Select countAll = MySQLUtils.selectCountAllFrom(tableHandle);
                 countRS = session.createStatement().executeQuery(countAll.getQueryString());
+                
+                countRS.next();
+                long count = countRS.getLong(1);
+                if (count >= limitForPartitionKeySelect) {
+                    return null; // too much effort to query all partition keys
+                }
             }
             else {
                 // no need to count if partition key is completely known
                 countRS = null;
             }
 
-            int limit = fullPartitionKey ? 1 : limitForPartitionKeySelect;
+//            int limit = fullPartitionKey ? 1 : limitForPartitionKeySelect;
             Select partitionKeys = MySQLUtils.selectDistinctFrom(tableHandle, partitionKeyColumns);
-            partitionKeys.limit(limit);
-            partitionKeys.setFetchSize(fetchSizeForPartitionKeySelect);
+  //          partitionKeys.limit(limit);
+           // partitionKeys.setFetchSize(fetchSizeForPartitionKeySelect);
             addWhereClause(partitionKeys.where(), partitionKeyColumns, filterPrefix);
             partitionKey = session.createStatement().executeQuery(partitionKeys.getQueryString());
-            if (!fullPartitionKey) {
-                long count;
-                countRS.first();
-                count = countRS.getLong("count(*)");
-                if (count == limitForPartitionKeySelect) {
-                    partitionKey.cancelRowUpdates();
-                    return null; // too much effort to query all partition keys
-                }
-            }
+//            if (!fullPartitionKey) {
+//                long count;
+//                countRS.first();
+//                count = countRS.getLong("count(*)");
+//                if (count >= limitForPartitionKeySelect) {
+//                    partitionKey.cancelRowUpdates();
+//                    return null; // too much effort to query all partition keys
+//                }
+//            }
         }
         catch (Exception e) {
           e.printStackTrace();

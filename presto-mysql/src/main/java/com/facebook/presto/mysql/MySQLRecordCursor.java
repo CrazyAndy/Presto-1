@@ -13,13 +13,15 @@
  */
 package com.facebook.presto.mysql;
 
+import java.sql.Date;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Time;
+import java.util.List;
+
 import com.facebook.presto.spi.ColumnType;
 import com.facebook.presto.spi.RecordCursor;
 import com.google.common.base.Charsets;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.List;
 
 public class MySQLRecordCursor
         implements RecordCursor
@@ -57,7 +59,7 @@ public class MySQLRecordCursor
     public boolean getBoolean(int i)
     {
         try {
-           return rs.getBoolean(i);
+           return rs.getBoolean(i + 1);
         }
         catch (SQLException e) {
           e.printStackTrace();
@@ -82,17 +84,18 @@ public class MySQLRecordCursor
     {
         switch (getMySQLType(i)) {
             case DOUBLE:
-            case DECIMAL:
             try {
-                return rs.getDouble(i);
+                return rs.getDouble(i + 1);
             }
             catch (SQLException e) {
                e.printStackTrace();
                throw new IllegalStateException("Cannot retrieve double for " + getMySQLType(i));
             }
+            
+            case DECIMAL:
             case FLOAT:
             try {
-               return rs.getFloat(i);
+               return rs.getFloat(i + 1);
             }
             catch (SQLException e) {
               e.printStackTrace();
@@ -114,8 +117,14 @@ public class MySQLRecordCursor
             case BIGINT:
             case COUNTER:
                 return rs.getLong(x);
+            case DATE:
             case TIMESTAMP:
-                return rs.getDate(x).getTime();
+            case DATETIME:
+            	
+            	Date dt = rs.getDate(x);
+            	
+            	return dt != null ? dt.getTime() : 0;
+            	
             default:
                 throw new IllegalStateException("Cannot retrieve long for " + getMySQLType(i));
            }

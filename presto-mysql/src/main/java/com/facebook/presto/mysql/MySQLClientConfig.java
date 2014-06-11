@@ -15,16 +15,19 @@ package com.facebook.presto.mysql;
 
 import com.datastax.driver.core.ConsistencyLevel;
 import com.google.common.base.Splitter;
+
 import io.airlift.configuration.Config;
 import io.airlift.units.Duration;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
+
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class MySQLClientConfig
 {
-    private static final Splitter SPLITTER = Splitter.on(',').trimResults().omitEmptyStrings();
+    private static final Splitter SPLITTER = Splitter.on(';').trimResults().omitEmptyStrings();
 
     private Duration schemaCacheTtl = new Duration(1, TimeUnit.HOURS);
     private Duration schemaRefreshInterval = new Duration(2, TimeUnit.MINUTES);
@@ -39,6 +42,7 @@ public class MySQLClientConfig
     private String jdbcUserName;
     private String jdbcPassword;
     private String connectorName;
+    private String[] clusterNodes;
 
     @Min(0)
     public int getLimitForPartitionKeySelect()
@@ -204,4 +208,20 @@ public class MySQLClientConfig
     {
        this.connectorName = connectorString;
     }
+
+	public String[] getClusterNodes() {
+		return clusterNodes;
+	}
+	
+	@Config("cluster.nodes")
+	public void setClusterNodes(String clusterNodes)
+	{
+		if (clusterNodes == null || clusterNodes == "")
+		{
+			return;
+		}
+		
+		List<String> splits = SPLITTER.splitToList(clusterNodes);
+		this.clusterNodes = splits.toArray(new String[splits.size()]);
+	}
 }
