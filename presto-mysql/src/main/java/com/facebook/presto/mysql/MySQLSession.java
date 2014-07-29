@@ -98,9 +98,10 @@ public class MySQLSession
 
     public Iterable<String> getAllSchemas()
     {
-        List<String> schemas = new ArrayList<String>();
+        Set<String> schemas = new HashSet<String>();
+        ResultSet rs = null;
+        
         try {
-            ResultSet rs = null;
             switch (this.connector) {
             case MYSQL:
                 rs = session.getMetaData().getCatalogs();
@@ -120,14 +121,21 @@ public class MySQLSession
         catch (Exception e) {
            e.printStackTrace();
         }
+        finally
+        {	  
+        	cleanUp(rs);
+        }
+        
         return schemas;
     }
 
-    public List<String> getAllTables(String caseSensitiveDatabaseName)
+	public List<String> getAllTables(String caseSensitiveDatabaseName)
     {
         List<String> tables = new ArrayList<String>();
+        ResultSet rs = null;
+        
         try {
-            ResultSet rs = null;
+            
             switch (this.connector) {
             case MYSQL:
                 DatabaseMetaData md = session.getMetaData();
@@ -149,18 +157,34 @@ public class MySQLSession
            catch (Exception e) {
             e.printStackTrace();
            }
+           finally
+           {
+        	   cleanUp(rs);
+           }
+        
            return tables;
     }
 
     public void getSchema(String databaseName)
     {
+       if (this.connector.equalsIgnoreCase(TERADATA))
+       {
+    	   //not supported, need to add implementation.
+    	   return;
+       }
+       
+       ResultSet rs = null;
        try {
             DatabaseMetaData md = session.getMetaData();
-            ResultSet rs = md.getSchemas(databaseName, null);
+            rs = md.getSchemas(databaseName, null);
            }
            catch (Exception e) {
             e.printStackTrace();
            }
+       finally
+       {
+    	   cleanUp(rs);
+       }
     }
 
     public MySQLTable getTable(SchemaTableName tableName)
@@ -171,14 +195,16 @@ public class MySQLSession
        ResultSet rset = null;
        String colName;
        String colType;
+       ResultSet rsetPKQuery = null;
+       
        try {
           switch (this.connector) {
               case MYSQL:
                    // add primary keys first
                    Set<String> primaryKeySet = new HashSet<>();
-                   Statement pKeySt = session.createStatement();
+                   //Statement pKeySt = session.createStatement();
                    String pKeyQuerySt = "select COLUMN_NAME, DATA_TYPE from information_schema.COLUMNS where (TABLE_SCHEMA = '" + tableName.getSchemaName() + "') AND (TABLE_NAME= '" + tableName.getTableName() + "') AND (COLUMN_KEY='PRI')";
-                   ResultSet rsetPKQuery = pKeySt.executeQuery(pKeyQuerySt);
+                   rsetPKQuery = this.executeQuery(pKeyQuerySt);
                    while (rsetPKQuery.next()) {
                        colName = rsetPKQuery.getString("COLUMN_NAME");
                        colType = rsetPKQuery.getString("DATA_TYPE");
@@ -187,7 +213,7 @@ public class MySQLSession
                        columnHandles.add(columnHandle);
                    }
                    //add other columns next
-                   Statement st = session.createStatement();
+                  // Statement st = session.createStatement();
                    /*String querySt = "SELECT * FROM " + tableName.getSchemaName() + "." + tableName.getTableName();
                    ResultSet rset = st.executeQuery(querySt);
                    ResultSetMetaData md = rset.getMetaData();
@@ -203,7 +229,7 @@ public class MySQLSession
                      }
                      MySQLColumnHandle columnHandle = buildColumnHandle(colName, colTypeNum, false, false, index++);*/
                      String querySt = "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" + tableName.getSchemaName() + "' AND TABLE_NAME = '" + tableName.getTableName() + "'";
-                     rset = st.executeQuery(querySt);
+                     rset = this.executeQuery(querySt);
                      while (rset.next())
                      {
                          colName = rset.getString("COLUMN_NAME");
@@ -216,7 +242,7 @@ public class MySQLSession
                      }
                 break;
            case TERADATA:
-        	    querySt = String.format("SELECT distinct ColumnName FROM dbc.indices where TableName = '%s' and IndexType = 'P'", tableName.getTableName());
+        	    querySt = String.format("SELECT distinct ColumnName FROM dbc.indices where TableName = '%s'", tableName.getTableName());
                 rset = this.executeQuery(querySt);
                 
                 Set<String> partitionKeyNames = new HashSet<String>();
@@ -242,6 +268,12 @@ public class MySQLSession
        catch (Exception e) {
            e.printStackTrace();
        }
+       finally
+       {
+    	   cleanUp(rset);
+    	   cleanUp(rsetPKQuery);
+       }
+       
        MySQLTable returnTable = new MySQLTable(tableHandle, columnHandles);
        return returnTable;
     }
@@ -315,6 +347,11 @@ public class MySQLSession
         catch (Exception e) {
           e.printStackTrace();
         }
+        finally
+        {
+        	cleanUp(rows);
+        }
+        
         return partitions.build();
     }
 
@@ -334,7 +371,7 @@ public class MySQLSession
         try {
             if (!fullPartitionKey) {
                 Select countAll = MySQLUtils.selectCountAllFrom(tableHandle);
-                countRS = session.createStatement().executeQuery(countAll.getQueryString());
+                countRS = this.executeQuery(countAll.getQueryString());
                 
                 countRS.next();
                 long count = countRS.getLong(1);
@@ -352,7 +389,8 @@ public class MySQLSession
   //          partitionKeys.limit(limit);
            // partitionKeys.setFetchSize(fetchSizeForPartitionKeySelect);
             addWhereClause(partitionKeys.where(), partitionKeyColumns, filterPrefix);
-            partitionKey = session.createStatement().executeQuery(partitionKeys.getQueryString());
+            
+            partitionKey = this.executeQuery(partitionKeys.toString());
 //            if (!fullPartitionKey) {
 //                long count;
 //                countRS.first();
@@ -366,6 +404,10 @@ public class MySQLSession
         catch (Exception e) {
           e.printStackTrace();
         }
+        finally
+        {
+        	cleanUp(countRS);
+        }
         return partitionKey;
     }
 
@@ -378,4 +420,15 @@ public class MySQLSession
             where.and(clause);
         }
     }
+    
+
+    private void cleanUp(ResultSet rs) {
+    	try {
+			if (rs != null)
+				rs.close();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 }

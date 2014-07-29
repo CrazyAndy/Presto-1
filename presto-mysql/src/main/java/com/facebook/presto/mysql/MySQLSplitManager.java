@@ -15,6 +15,7 @@ package com.facebook.presto.mysql;
 
 import com.facebook.presto.mysql.util.HostAddressFactory;
 import com.facebook.presto.mysql.util.MySQLHost;
+import com.facebook.presto.mysql.util.MySQLUtils;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorSplitManager;
 import com.facebook.presto.spi.Domain;
@@ -39,8 +40,11 @@ import io.airlift.log.Logger;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -100,43 +104,93 @@ public class MySQLSplitManager
 
         MySQLTable table = schemaProvider.getTable(mySQLTableHandle);
 
-        List<MySQLColumnHandle> partitionKeys = table.getPartitionKeyColumns();
-        List<Comparable<?>> filterPrefix = new ArrayList<>();
-        for (int i = 0; i < partitionKeys.size(); i++) {
-            MySQLColumnHandle columnHandle = partitionKeys.get(i);
+        //List<MySQLColumnHandle> partitionKeys = table.getPartitionKeyColumns();
+//        List<Comparable<?>> filterPrefix = new ArrayList<>();
+//        for (int i = 0; i < partitionKeys.size(); i++) {
+//            MySQLColumnHandle columnHandle = partitionKeys.get(i);
+//
+//            // only add to prefix if all previous keys have a value
+//            if (filterPrefix.size() == i && !tupleDomain.isNone()) {
+//                Domain domain = tupleDomain.getDomains().get(columnHandle);
+//                if (domain != null && domain.getRanges().getRangeCount() == 1) {
+//                    // We intentionally ignore whether NULL is in the domain since partition keys can never be NULL
+//                    Range range = Iterables.getOnlyElement(domain.getRanges());
+//                    if (range.isSingleValue()) {
+//                        Comparable<?> value = range.getLow().getValue();
+//                        checkArgument(value instanceof Boolean || value instanceof String || value instanceof Double || value instanceof Long,
+//                                "Only Boolean, String, Double and Long partition keys are supported");
+//                        filterPrefix.add(value);
+//                    }
+//                }
+//            }
+//        }
 
-            // only add to prefix if all previous keys have a value
-            if (filterPrefix.size() == i && !tupleDomain.isNone()) {
-                Domain domain = tupleDomain.getDomains().get(columnHandle);
-                if (domain != null && domain.getRanges().getRangeCount() == 1) {
-                    // We intentionally ignore whether NULL is in the domain since partition keys can never be NULL
-                    Range range = Iterables.getOnlyElement(domain.getRanges());
-                    if (range.isSingleValue()) {
-                        Comparable<?> value = range.getLow().getValue();
-                        checkArgument(value instanceof Boolean || value instanceof String || value instanceof Double || value instanceof Long,
-                                "Only Boolean, String, Double and Long partition keys are supported");
-                        filterPrefix.add(value);
-                    }
+        HashMap<ColumnHandle, Comparable<?>> map = new HashMap<>();
+        ImmutableList.Builder<MySQLPartition> partitionBuilder = ImmutableList.builder();
+        
+        List<ColumnHandle> columns = new ArrayList<ColumnHandle>();
+        StringBuilder stringBuilder = new StringBuilder();
+        int i = 0;
+        for (Map.Entry<ColumnHandle, Domain> entry : tupleDomain.getDomains().entrySet())
+        {
+        	Domain domain = entry.getValue();
+        	
+        	if (domain != null && domain.getRanges().getRangeCount() == 1)
+        	{
+                Range range = Iterables.getOnlyElement(domain.getRanges());
+                MySQLColumnHandle columnHandle = (MySQLColumnHandle)entry.getKey();
+                if (!range.isSingleValue())
+                {
+                	continue;
                 }
+                
+                Comparable<?> value = range.getLow().getValue();
+                checkArgument(value instanceof Boolean || value instanceof String || value instanceof Double || value instanceof Long,
+                        "Only Boolean, String, Double and Long partition keys are supported");
+               
+                columns.add(columnHandle);
+                
+                map.put(columnHandle, value);
+                if (i > 0) {
+                    stringBuilder.append(" AND ");
+                }
+                stringBuilder.append(MySQLUtils.validColumnName(columnHandle.getName()));
+                stringBuilder.append(" = ");
+                stringBuilder.append(MYSQLType.getMySQLColumnStringValue(value.toString(), columnHandle.getMySQLType()));
+                i++;
             }
         }
+        
+        if (stringBuilder.length()> 0)
+        {
+        	TupleDomain tuple = TupleDomain.withFixedValues(map);
+            String partitionId = stringBuilder.toString();
+            partitionBuilder.add(new MySQLPartition(partitionId, tuple));
+        }
+        else
+        {
+        	partitionBuilder.add(MySQLPartition.UNPARTITIONED);
+        }
+        
+        
+        List<MySQLPartition> allPartitions = partitionBuilder.build();
 
-        // fetch the partitions
-        List<MySQLPartition> allPartitions = schemaProvider.getPartitions(table, filterPrefix);
         log.debug("%s.%s #partitions: %d", mySQLTableHandle.getSchemaName(), mySQLTableHandle.getTableName(), allPartitions.size());
 
         // do a final pass to filter based on fields that could not be used to build the prefix
-        List<Partition> partitions = FluentIterable.from(allPartitions)
-                .filter(partitionMatches(tupleDomain))
-                .filter(Partition.class)
-                .toList();
+//        List<Partition> partitions = FluentIterable.from(allPartitions)
+//                .filter(partitionMatches(tupleDomain))
+//                .filter(P artition.class)
+//                .toList();
 
+      List<Partition> partitions = FluentIterable.from(allPartitions)
+      .filter(Partition.class)
+      .toList();
+        
         // All partition key domains will be fully evaluated, so we don't need to include those
         TupleDomain remainingTupleDomain = TupleDomain.none();
         if (!tupleDomain.isNone()) {
-            @SuppressWarnings({"rawtypes", "unchecked"})
-            List<ColumnHandle> partitionColumns = (List) partitionKeys;
-            remainingTupleDomain = TupleDomain.withColumnDomains(Maps.filterKeys(tupleDomain.getDomains(), not(in(partitionColumns))));
+            remainingTupleDomain = TupleDomain.withColumnDomains(Maps.filterKeys(tupleDomain.getDomains(), not(in(columns))));
         }
 
         return new PartitionResult(partitions, remainingTupleDomain);

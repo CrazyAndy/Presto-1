@@ -53,6 +53,15 @@ public class MySQLRecordCursor
     @Override
     public void close()
     {
+    	
+    	try {
+    		if (rs != null)
+    		{
+    			rs.close();
+    		}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
     }
 
     @Override
@@ -113,6 +122,7 @@ public class MySQLRecordCursor
         try {
           switch (getMySQLType(i)) {
             case INT:
+            case INTEGER:
                 return rs.getInt(x);
             case BIGINT:
             case COUNTER:

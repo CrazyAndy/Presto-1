@@ -382,6 +382,51 @@ public enum MYSQLType
             }
         }
     }
+    
+    public static String getMySQLColumnStringValue(String value, MYSQLType mySQLType)
+    {
+        if (value == null) {
+            return "NULL";
+        }
+        else {
+          switch (mySQLType) {
+            case CHAR:
+            case TEXT:
+            case VARCHAR:
+                return MySQLUtils.quoteStringLiteral(value);
+            case INT:
+            case INTEGER:
+            case SMALLINT:
+            case TINYINT:
+            case BIGINT:
+            case COUNTER:
+                return Long.toString(Long.parseLong(value));
+            case BOOLEAN:
+                return Boolean.toString(Boolean.parseBoolean(value));
+            case DOUBLE:
+                return Double.toString(Double.parseDouble(value));
+            case FLOAT:
+                return Double.toString(Double.parseDouble(value));
+            case DECIMAL:
+                return Double.toString(new BigDecimal(value).doubleValue());
+            case UUID:
+            case TIMEUUID:
+                return value;
+            case TIME:
+            case DATE:
+            case TIMESTAMP:
+                return Long.toString(new Date(Long.parseLong(value)).getTime());
+            case VARINT:
+                return new BigInteger(value).toString();
+            case BLOB:
+            case CUSTOM:
+                return Bytes.toHexString(value.getBytes());
+            default:
+                throw new IllegalStateException("Handling of type " + mySQLType
+                        + " is not implemented");
+        }
+        }
+    }
 
     public static String getMySQLColumnStringValue(ResultSet rows, int i, MYSQLType mySQLType)
     {
