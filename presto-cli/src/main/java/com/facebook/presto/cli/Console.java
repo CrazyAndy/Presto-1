@@ -141,6 +141,11 @@ public class Console
                             System.out.println(getHelpText());
                             continue;
                     }
+                    if(!(command.toLowerCase().contains("select") || command.toLowerCase().contains("show") || command.toLowerCase().contains("explain") | command.toLowerCase().contains("describe"))) {
+                    	System.out.println("Only SELECT, SHOW, EXPLAIN, DESCRIBE functions supported over Command Line Client. For other functions, please use the API.");
+                    	line = null;
+                    	continue;
+                    }
                 }
 
                 // not a command, add line to buffer
