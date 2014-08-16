@@ -51,7 +51,7 @@ import static jline.internal.Configuration.getUserHome;
 public class Console
         implements Runnable
 {
-    private static final String PROMPT_NAME = "DQP";
+    private static final String PROMPT_NAME = "DQP-Terminal";
 
     @Inject
     public HelpOption helpOption;
@@ -105,7 +105,7 @@ public class Console
             StringBuilder buffer = new StringBuilder();
             while (true) {
                 // read a line of input from user
-                String prompt = PROMPT_NAME + ":" + session.getSchema();
+            	String prompt = PROMPT_NAME ; // String prompt = PROMPT_NAME + ":" + session.getSchema();
                 if (buffer.length() > 0) {
                     prompt = Strings.repeat(" ", prompt.length() - 1) + "-";
                 }
