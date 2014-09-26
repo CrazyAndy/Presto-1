@@ -1,6 +1,6 @@
 # Presto
 
-Presto is a distributed SQL query engine for big data.
+Presto is a distributed SQL query engine for big data. This is a modified version for Presto used by Traffic team as part of the DQP project.
 
 See the [User Manual](http://prestodb.io/docs/current/) for deployment instructions and end user documentation.
 
