@@ -73,7 +73,7 @@ public class CassandraConnectorFactory
                         }
                     });
 
-            Injector injector = app.strictConfig().doNotInitializeLogging()
+            Injector injector = app.doNotInitializeLogging()
                     .setRequiredConfigurationProperties(config)
                     .setOptionalConfigurationProperties(optionalConfig).initialize();
 

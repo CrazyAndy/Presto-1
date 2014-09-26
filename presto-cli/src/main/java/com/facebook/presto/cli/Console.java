@@ -51,7 +51,7 @@ import static jline.internal.Configuration.getUserHome;
 public class Console
         implements Runnable
 {
-    private static final String PROMPT_NAME = "DQP-Terminal";
+    private static final String PROMPT_NAME = "DQP-Terminal-BETA";
 
     @Inject
     public HelpOption helpOption;

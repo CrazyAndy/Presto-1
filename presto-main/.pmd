@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <pmd>
     <useProjectRuleSet>true</useProjectRuleSet>
-    <ruleSetFile>/mnt/hgfs/mysql_disk/git_clone/presto/presto-main/.pmdruleset.xml</ruleSetFile>
+    <ruleSetFile>/mnt/hgfs/mysql_disk/git_clone/sgd_presto/presto/presto-main/.pmdruleset.xml</ruleSetFile>
     <includeDerivedFiles>false</includeDerivedFiles>
     <violationsAsErrors>true</violationsAsErrors>
     <fullBuildEnabled>true</fullBuildEnabled>

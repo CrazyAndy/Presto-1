@@ -16,6 +16,7 @@ package com.facebook.presto.cassandra;
 import com.datastax.driver.core.ConsistencyLevel;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+
 import io.airlift.configuration.Config;
 import io.airlift.units.Duration;
 
@@ -29,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 
 public class CassandraClientConfig
 {
-    private static final Splitter SPLITTER = Splitter.on(',').trimResults().omitEmptyStrings();
+    private static final Splitter SPLITTER = Splitter.on(';').trimResults().omitEmptyStrings();
 
     private Duration schemaCacheTtl = new Duration(1, TimeUnit.HOURS);
     private Duration schemaRefreshInterval = new Duration(2, TimeUnit.MINUTES);
@@ -41,6 +42,8 @@ public class CassandraClientConfig
     private int fetchSize = 5_000;
     private List<String> contactPoints = ImmutableList.of();
     private int nativeProtocolPort = 9042;
+    private String connectorName;
+    private String[] clusterNodes;
 
     @Min(0)
     public int getLimitForPartitionKeySelect()
@@ -178,4 +181,32 @@ public class CassandraClientConfig
         this.fetchSizeForPartitionKeySelect = fetchSizeForPartitionKeySelect;
         return this;
     }
+    
+    @NotNull
+    public String getConnectorName()
+    {
+      return connectorName;
+    }
+
+    @Config("database.type")
+    public void setConnectorName(String connectorString)
+    {
+       this.connectorName = connectorString;
+    }
+    
+	public String[] getClusterNodes() {
+		return clusterNodes;
+	}
+	
+	@Config("cluster.nodes")
+	public void setClusterNodes(String clusterNodes)
+	{
+		if (clusterNodes == null || clusterNodes == "")
+		{
+			return;
+		}
+		
+		List<String> splits = SPLITTER.splitToList(clusterNodes);
+		this.clusterNodes = splits.toArray(new String[splits.size()]);
+	}
 }
