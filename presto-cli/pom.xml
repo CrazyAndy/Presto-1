@@ -8,8 +8,8 @@
         <version>0.66-SNAPSHOT</version>
     </parent>
 
-    <artifactId>dqp-cli-BETA</artifactId>
-    <name>dqp-cli-BETA</name>
+    <artifactId>dqp-client-BETA</artifactId>
+    <name>dqp-client-BETA</name>
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>

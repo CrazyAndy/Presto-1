@@ -8,8 +8,8 @@
         <version>0.66-SNAPSHOT</version>
     </parent>
 
-    <artifactId>presto-server</artifactId>
-    <name>presto-server</name>
+    <artifactId>dqp-server-BETA</artifactId>
+    <name>dqp-server-BETA</name>
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
