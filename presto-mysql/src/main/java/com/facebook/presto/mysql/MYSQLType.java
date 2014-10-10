@@ -39,6 +39,9 @@ public enum MYSQLType
     BIGINT(ColumnType.LONG, Long.class),
     BLOB(ColumnType.STRING, ByteBuffer.class),
     TEXT(ColumnType.STRING, ByteBuffer.class),
+    TINYTEXT(ColumnType.STRING, ByteBuffer.class),
+    MEDIUMTEXT(ColumnType.STRING, ByteBuffer.class),
+    LONGTEXT(ColumnType.STRING, ByteBuffer.class),
     CUSTOM(ColumnType.STRING, ByteBuffer.class),
     BOOLEAN(ColumnType.BOOLEAN, Boolean.class),
     COUNTER(ColumnType.LONG, Long.class),
@@ -48,6 +51,7 @@ public enum MYSQLType
     INET(ColumnType.STRING, InetAddress.class),
     INT(ColumnType.LONG, Integer.class),
     INTEGER(ColumnType.LONG, Integer.class),
+    MEDIUMINT(ColumnType.LONG, Integer.class),
     SMALLINT(ColumnType.LONG, Integer.class),
     TINYINT(ColumnType.LONG, Integer.class),
     TIMESTAMP(ColumnType.LONG, Date.class),
@@ -119,6 +123,8 @@ public enum MYSQLType
                 return NVARCHAR;
             case "LONGNVARCHAR":
                 return LONGVARCHAR;
+            case "MEDIUMINT":
+                return MEDIUMINT;
             case "SMALLINT":
                 return SMALLINT;
             case "TINYINT":
@@ -131,6 +137,12 @@ public enum MYSQLType
                 return INTEGER;
             case "TEXT":
                 return TEXT;
+            case "TINYTEXT":
+                return TINYTEXT;
+            case "MEDIUMTEXT":
+                return MEDIUMTEXT;
+            case "LONGTEXT":
+                return LONGTEXT;
             default:
                 return null;
         }
@@ -192,11 +204,17 @@ public enum MYSQLType
             switch (mySQLType) {
                 case CHAR:
                 case TEXT:
+                case TINYTEXT:
+                case MEDIUMTEXT:
+                case LONGTEXT:
                 case VARCHAR:
                 case NVARCHAR:
                 case LONGVARCHAR:
                     return row.getString(i);
                 case INT:
+                case MEDIUMINT:
+                case SMALLINT:
+                case TINYINT:
                     return (long) row.getInt(i);
                 case BIGINT:
                 case COUNTER:
@@ -254,12 +272,17 @@ public enum MYSQLType
             switch (mySQLType) {
                 case CHAR:
                 case TEXT:
+                case TINYTEXT:
+                case MEDIUMTEXT:
+                case LONGTEXT:
                 case VARCHAR:
                     return pKeyValue;
-                case INT:
-                case INTEGER:
                 case SMALLINT:
                 case TINYINT:
+                case MEDIUMINT:
+                	return Integer.parseInt(pKeyValue);
+                case INT:
+                case INTEGER:
                 case BIGINT:
                 case COUNTER:
                     return Long.parseLong(pKeyValue);
@@ -392,12 +415,17 @@ public enum MYSQLType
           switch (mySQLType) {
             case CHAR:
             case TEXT:
+            case TINYTEXT:
+            case MEDIUMTEXT:
+            case LONGTEXT:
             case VARCHAR:
                 return MySQLUtils.quoteStringLiteral(value);
-            case INT:
-            case INTEGER:
             case SMALLINT:
             case TINYINT:
+            case MEDIUMINT:
+            	return Integer.toString(Integer.parseInt(value));
+            case INT:
+            case INTEGER:
             case BIGINT:
             case COUNTER:
                 return Long.toString(Long.parseLong(value));
@@ -444,12 +472,17 @@ public enum MYSQLType
           switch (mySQLType) {
             case CHAR:
             case TEXT:
+            case TINYTEXT:
+            case MEDIUMTEXT:
+            case LONGTEXT:
             case VARCHAR:
                 return MySQLUtils.quoteStringLiteral(pKeyValue);
-            case INT:
-            case INTEGER:
             case SMALLINT:
             case TINYINT:
+            case MEDIUMINT:
+            	return Integer.toString(Integer.parseInt(pKeyValue));
+            case INT:
+            case INTEGER:
             case BIGINT:
             case COUNTER:
                 return Long.toString(Long.parseLong(pKeyValue));
@@ -485,6 +518,9 @@ public enum MYSQLType
         switch (elemType) {
             case CHAR:
             case TEXT:
+            case TINYTEXT:
+            case MEDIUMTEXT:
+            case LONGTEXT:
             case VARCHAR:
             case UUID:
             case TIMEUUID:
@@ -499,6 +535,9 @@ public enum MYSQLType
 
             case INT:
             case BIGINT:
+            case SMALLINT:
+            case TINYINT:
+            case MEDIUMINT:
             case COUNTER:
             case BOOLEAN:
             case DOUBLE:

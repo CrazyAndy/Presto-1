@@ -123,6 +123,9 @@ public class MySQLRecordCursor
           switch (getMySQLType(i)) {
             case INT:
             case INTEGER:
+            case SMALLINT:
+            case TINYINT:
+            case MEDIUMINT:
                 return rs.getInt(x);
             case BIGINT:
             case COUNTER:
