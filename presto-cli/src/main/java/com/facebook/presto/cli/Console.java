@@ -52,6 +52,7 @@ public class Console
         implements Runnable
 {
     private static final String PROMPT_NAME = "DQP-Terminal-BETA";
+    private String filter_string = null;
 
     @Inject
     public HelpOption helpOption;
@@ -88,7 +89,7 @@ public class Console
 
         try (QueryRunner queryRunner = QueryRunner.create(session)) {
             if (hasQuery) {
-                executeCommand(queryRunner, query, clientOptions.outputFormat);
+                executeCommand(queryRunner, query, clientOptions.outputFormat, filter_string);
             }
             else {
                 runConsole(queryRunner, session);
@@ -129,6 +130,14 @@ public class Console
                 // check for special commands if this is the first line
                 if (buffer.length() == 0) {
                     String command = line.trim();
+                    if(command.contains("filter_with")) {
+                    	String temp1 = command.split("filter_with")[0];
+                    	filter_string = command.split("filter_with")[1];
+                    	command = temp1.split(";")[0];
+                    	command += ";";
+                    	command.trim();
+                    	line = command;
+                    }
                     if (command.endsWith(";")) {
                         command = command.substring(0, command.length() - 1).trim();
                     }
@@ -166,7 +175,7 @@ public class Console
                             outputFormat = OutputFormat.VERTICAL;
                         }
 
-                        process(queryRunner, split.statement(), outputFormat, true);
+                        process(queryRunner, split.statement(), outputFormat, true, filter_string);
                     }
                     reader.getHistory().add(squeezeStatement(split.statement()) + split.terminator());
                 }
@@ -213,15 +222,15 @@ public class Console
         return statement instanceof UseCollection;
     }
 
-    private static void executeCommand(QueryRunner queryRunner, String query, OutputFormat outputFormat)
+    private static void executeCommand(QueryRunner queryRunner, String query, OutputFormat outputFormat, String filter_with)
     {
         StatementSplitter splitter = new StatementSplitter(query + ";");
         for (Statement split : splitter.getCompleteStatements()) {
-            process(queryRunner, split.statement(), outputFormat, false);
+            process(queryRunner, split.statement(), outputFormat, false, filter_with);
         }
     }
 
-    private static void process(QueryRunner queryRunner, String sql, OutputFormat outputFormat, boolean interactive)
+    private static void process(QueryRunner queryRunner, String sql, OutputFormat outputFormat, boolean interactive, String filter_with)
     {
         try (Query query = queryRunner.startQuery(sql)) {
             query.renderOutput(System.out, outputFormat, interactive);
