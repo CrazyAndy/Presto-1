@@ -13,14 +13,22 @@
  */
 package com.facebook.presto.cli;
 
+import com.facebook.presto.cli.Tuple.Pair;
+import com.facebook.presto.cli.Tuple.Triple;
 import com.facebook.presto.client.StatementClient;
+import com.fasterxml.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor;
+
 import io.airlift.units.Duration;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.json.JSONObject;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static io.airlift.units.Duration.nanosSince;
@@ -67,14 +75,94 @@ public final class OutputHandler
         }
     }
 
-    public void processRows(StatementClient client)
+    public void processRows(StatementClient client, HashMap<Integer,Tuple.Triple<String,String,String>> filterMap)
             throws IOException
     {
         while (client.isValid()) {
             Iterable<List<Object>> data = client.current().getData();
             if (data != null) {
                 for (List<Object> tuple : data) {
-                    processRow(unmodifiableList(tuple));
+                	
+                	for(Entry<Integer, Triple<String, String, String>> filterEntry: filterMap.entrySet()) {
+                		Integer itemIndex = filterEntry.getKey();
+                		Object item = tuple.get(itemIndex.intValue());
+                		System.out.println(item);
+                		JSONObject jsonRep = null;
+                		try {
+                			if(item != null)
+                       		 jsonRep = new JSONObject(item.toString());
+                			 
+                			 switch(filterEntry.getValue().getMiddle()) {
+                			 	case Constants.EQ:
+                			 		String actualStringValue = (String)jsonRep.get(filterEntry.getValue().getKey());
+                			 		if (!filterEntry.getValue().getValue().equals(actualStringValue)) 
+                			 			continue;
+                			 		processRow(unmodifiableList(tuple));
+                			 		break;
+                			 	case Constants.LT:
+                			 		try {
+                    			 		char firstLTChar = filterEntry.getValue().getKey().charAt(0);
+                    			 		String ltKey = filterEntry.getValue().getKey().substring(1);
+                    			 		String actualLTValue = (String) jsonRep.get(ltKey);
+                    			 		
+                    			 		if(firstLTChar == 'l') {
+                    			 			Long actualLongValue = Long.parseLong(actualLTValue);
+                    			 			Long expectedLongValue = Long.parseLong(filterEntry.getValue().getValue());
+                    			 			if(! (actualLongValue < expectedLongValue))
+                    			 				continue;
+                    			 			processRow(unmodifiableList(tuple));
+                    			 		}
+                    			 		else if(firstLTChar == 'd') {
+                    			 			Double actualDoubleValue = Double.parseDouble(actualLTValue);
+                    			 			Double expectedDoubleValue = Double.parseDouble(filterEntry.getValue().getValue());
+                    			 			if(! (actualDoubleValue < expectedDoubleValue))
+                    			 				continue;
+                    			 			processRow(unmodifiableList(tuple));
+                    			 		}
+                			 		} catch (Exception e) {
+                			 			System.out.println("For <, and > operations use 'l', 'd' to notify if it is a long or double value for comparision in FILTER_WITH clause.");
+                			 			return;
+                			 		}
+                			 		break;
+                			 	case Constants.GT:
+                			 		try {
+                			 			char firstGTChar = filterEntry.getValue().getKey().charAt(0);
+                    			 		String gtKey = filterEntry.getValue().getKey().substring(1);
+                    			 		String actualGTValue = (String) jsonRep.get(gtKey);
+                    			 		
+                    			 		if(firstGTChar == 'l') {
+                    			 			Long actualLongValue = Long.parseLong(actualGTValue);
+                    			 			Long expectedLongValue = Long.parseLong(filterEntry.getValue().getValue());
+                    			 			if(! (actualLongValue > expectedLongValue))
+                    			 				continue;
+                    			 			processRow(unmodifiableList(tuple));
+                    			 		}
+                    			 		else if(firstGTChar == 'd') {
+                    			 			Double actualDoubleValue = Double.parseDouble(actualGTValue);
+                    			 			Double expectedDoubleValue = Double.parseDouble(filterEntry.getValue().getValue());
+                    			 			if(! (actualDoubleValue > expectedDoubleValue))
+                    			 				continue;
+                    			 			processRow(unmodifiableList(tuple));
+                    			 		}
+                			 		}catch (Exception e) {
+                			 			System.out.println("For <, and > operations use 'l', 'd' to notify if it is a long or double value for comparision in FILTER_WITH clause.");
+                			 			return;
+                			 		}
+                			 		break;
+                			 	default:
+                			 		System.out.println("Incorrect operator in the FILTER_WITH section- check query, accepting only =, > , < operations (or) failed to add 'l' or 'd' to notify long or double type with field name");
+                			 		return;
+                			 }
+                			 
+                			 System.out.println();
+                		
+                		} catch(Exception e) {
+                			System.out.println("Error converting JSON for FILTER_WITH function - check data, possible data format error (cannot convert to JSON)or empty space in the middle, etc.");
+                			return;
+                		}
+                	}
+                	
+                    //processRow(unmodifiableList(tuple));
                 }
             }
 

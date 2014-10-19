@@ -130,15 +130,15 @@ public class Console
                 // check for special commands if this is the first line
                 if (buffer.length() == 0) {
                     String command = line.trim();
-                    if(command.contains("filter_with")) {
-                    	String temp1 = command.split("filter_with")[0];
-                    	filter_string = command.split("filter_with")[1];
-                    	command = temp1.split(";")[0];
-                    	command += ";";
+                    if(command.contains(Constants.LOWERCASE_FILTER_WITH) || command.contains(Constants.UPPERCASE_FILTER_WITH)) {
+                    	String temp1 = command.toLowerCase().split(Constants.LOWERCASE_FILTER_WITH)[0];
+                    	filter_string = command.toLowerCase().split(Constants.LOWERCASE_FILTER_WITH)[1];
+                    	command = temp1.split(Constants.SEMI_COLON)[0];
+                    	command += Constants.SEMI_COLON;
                     	command.trim();
                     	line = command;
                     }
-                    if (command.endsWith(";")) {
+                    if (command.endsWith(Constants.SEMI_COLON)) {
                         command = command.substring(0, command.length() - 1).trim();
                     }
                     switch (command.toLowerCase()) {
@@ -233,7 +233,7 @@ public class Console
     private static void process(QueryRunner queryRunner, String sql, OutputFormat outputFormat, boolean interactive, String filter_with)
     {
         try (Query query = queryRunner.startQuery(sql)) {
-            query.renderOutput(System.out, outputFormat, interactive);
+            query.renderOutput(System.out, outputFormat, interactive, filter_with);
         }
         catch (RuntimeException e) {
             System.out.println("Error running command: " + e.getMessage());

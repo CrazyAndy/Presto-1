@@ -24,8 +24,11 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+
 import io.airlift.log.Logger;
+
 import org.fusesource.jansi.Ansi;
+
 import sun.misc.Signal;
 import sun.misc.SignalHandler;
 
@@ -35,6 +38,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.Writer;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -57,7 +61,7 @@ public class Query
         this.client = checkNotNull(client, "client is null");
     }
 
-    public void renderOutput(PrintStream out, OutputFormat outputFormat, boolean interactive)
+    public void renderOutput(PrintStream out, OutputFormat outputFormat, boolean interactive, String filter_with)
     {
         SignalHandler oldHandler = Signal.handle(SIGINT, new SignalHandler()
         {
@@ -79,14 +83,14 @@ public class Query
             }
         });
         try {
-            renderQueryOutput(out, outputFormat, interactive);
+            renderQueryOutput(out, outputFormat, interactive, filter_with);
         }
         finally {
             Signal.handle(SIGINT, oldHandler);
         }
     }
 
-    private void renderQueryOutput(PrintStream out, OutputFormat outputFormat, boolean interactive)
+    private void renderQueryOutput(PrintStream out, OutputFormat outputFormat, boolean interactive, String filter_with)
     {
         StatusPrinter statusPrinter = null;
         @SuppressWarnings("resource")
@@ -108,7 +112,7 @@ public class Query
             }
 
             try {
-                renderResults(out, outputFormat, interactive, results);
+                renderResults(out, outputFormat, interactive, results, filter_with);
             }
             catch (QueryAbortedException e) {
                 System.out.println("(query aborted by user)");
@@ -141,19 +145,94 @@ public class Query
         }
     }
 
-    private void renderResults(PrintStream out, OutputFormat format, boolean interactive, QueryResults results)
+    private void renderResults(PrintStream out, OutputFormat format, boolean interactive, QueryResults results, String filter_with)
             throws IOException
     {
         List<String> fieldNames = Lists.transform(results.getColumns(), Column.nameGetter());
+        HashMap<Integer,Tuple.Triple<String,String, String>> filterMap = new HashMap<Integer,Tuple.Triple<String,String,String>>();
+       
+        String filterKeys = null;
+        String[] filterItems = null;
+        
+        if(filter_with !=null && filter_with.contains(Constants.SEMI_COLON))
+        	filterKeys = filter_with.split(Constants.SEMI_COLON)[0].trim();
+        else {
+        	System.out.println("FILTER_WITH command should end with a semi-colon.");
+        	filterMap = null;
+        	filterKeys = null;
+        	filterItems = null;
+        	return;
+        }
+        
+        if(filterKeys !=null && filterKeys.contains(Constants.COMMA))
+        	filterItems = filterKeys.split(Constants.COMMA);
+        else {
+        	if(filterKeys !=null && (filterKeys.contains(Constants.EQ) || filterKeys.contains(Constants.GT) || filterKeys.contains(Constants.LT))) 
+        		filterItems = new String[] {filterKeys.trim()};
+        }
+       
+        if(filterItems !=null && filterItems.length > 0) {
+        	for(String item : filterItems) {
+        		String attributeName = null;
+        		String attributeCondition = null;
+        		
+        		int attributeIndex = -1;
+        		
+        		if(item.contains(Constants.DOT)) {
+        			attributeName = item.split("\\.")[0];
+        			attributeCondition = item.split("\\.")[1];
+        		}
+        			
+        		if(attributeName != null)	
+        			attributeIndex = fieldNames.indexOf(attributeName.trim());
+        		
+        		if(attributeIndex !=-1) {
+        			if(attributeCondition != null && attributeCondition.contains(Constants.EQ)) {
+        				Tuple.Triple<String, String, String> conditionMap = new Tuple.Triple<String,String, String> (attributeCondition.split(Constants.EQ)[0].trim(),Constants.EQ,attributeCondition.split(Constants.EQ)[1].trim());
+        				filterMap.put(attributeIndex, conditionMap);
+        				conditionMap = null;
+        			}
+        			else if(attributeCondition != null && attributeCondition.contains(Constants.GT)) {
+        				Tuple.Triple<String, String, String> conditionMap = new Tuple.Triple<String, String, String>(attributeCondition.split(Constants.GT)[0].trim(),Constants.GT,attributeCondition.split(Constants.GT)[1].trim());
+        				filterMap.put(attributeIndex, conditionMap);
+        				conditionMap = null;
+        			} 
+        			else if(attributeCondition != null && attributeCondition.contains(Constants.LT)) {
+        				Tuple.Triple<String, String, String> conditionMap = new Tuple.Triple<String, String, String>(attributeCondition.split(Constants.LT)[0].trim(),Constants.LT,attributeCondition.split(Constants.LT)[1].trim());
+        				filterMap.put(attributeIndex, conditionMap);
+        				conditionMap = null;
+        			}
+        			else {
+        				System.out.println("One or more attribute conditions(s) in the FILTER_WITH section is incorrect - check query.");
+            			filterMap = null;
+            			filterKeys = null;
+                    	filterItems = null;
+                    	attributeName = null;
+                    	attributeCondition = null;
+                    	return;
+        			}
+        			
+        		} else {
+        			System.out.println("One or more attribute name(s) in the FILTER_WITH section is incorrect - check for Upper case, white spaces etc.");
+        			filterMap = null;
+                	filterKeys = null;
+                	filterItems = null;
+                	attributeName = null;
+                	attributeCondition = null;
+                	return;
+        		}
+        	}
+        }
+        
         if (interactive) {
-            pageOutput(format, fieldNames);
+            pageOutput(format, fieldNames, filterMap);
         }
         else {
-            sendOutput(out, format, fieldNames);
+            sendOutput(out, format, fieldNames, filterMap);
         }
     }
 
-    private void pageOutput(OutputFormat format, List<String> fieldNames)
+    private void pageOutput(OutputFormat format, List<String> fieldNames, HashMap<Integer,Tuple.Triple<String,String, String>> filterMap)
             throws IOException
     {
         // ignore the user pressing ctrl-C while in the pager
@@ -161,15 +240,15 @@ public class Query
 
         try (Writer writer = createWriter(Pager.create());
                 OutputHandler handler = createOutputHandler(format, writer, fieldNames)) {
-            handler.processRows(client);
+            handler.processRows(client, filterMap);
         }
     }
 
-    private void sendOutput(PrintStream out, OutputFormat format, List<String> fieldNames)
+    private void sendOutput(PrintStream out, OutputFormat format, List<String> fieldNames, HashMap<Integer,Tuple.Triple<String,String, String>> filterMap)
             throws IOException
     {
         try (OutputHandler handler = createOutputHandler(format, createWriter(out), fieldNames)) {
-            handler.processRows(client);
+            handler.processRows(client, filterMap);
         }
     }
 
