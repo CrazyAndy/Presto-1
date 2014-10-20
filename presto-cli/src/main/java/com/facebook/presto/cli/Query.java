@@ -156,7 +156,7 @@ public class Query
         
         if(filter_with !=null && filter_with.contains(Constants.SEMI_COLON))
         	filterKeys = filter_with.split(Constants.SEMI_COLON)[0].trim();
-        else {
+        else if(filter_with !=null) {
         	System.out.println("FILTER_WITH command should end with a semi-colon.");
         	filterMap = null;
         	filterKeys = null;
@@ -166,7 +166,7 @@ public class Query
         
         if(filterKeys !=null && filterKeys.contains(Constants.COMMA))
         	filterItems = filterKeys.split(Constants.COMMA);
-        else {
+        else if(filter_with !=null) {
         	if(filterKeys !=null && (filterKeys.contains(Constants.EQ) || filterKeys.contains(Constants.GT) || filterKeys.contains(Constants.LT))) 
         		filterItems = new String[] {filterKeys.trim()};
         }

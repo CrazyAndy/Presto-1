@@ -95,9 +95,10 @@ public final class OutputHandler
                 			 switch(filterEntry.getValue().getMiddle()) {
                 			 	case Constants.EQ:
                 			 		String actualStringValue = (String)jsonRep.get(filterEntry.getValue().getKey());
-                			 		if (!filterEntry.getValue().getValue().equals(actualStringValue)) 
-                			 			continue;
-                			 		processRow(unmodifiableList(tuple));
+                			 		if (!filterEntry.getValue().getValue().equals(actualStringValue)) {
+                			 			System.out.println("One of the expected & actual values not equal in EQ operator or FILTER_WITH clause"); 
+                			 			return;
+                			 		}
                 			 		break;
                 			 	case Constants.LT:
                 			 		try {
@@ -108,16 +109,18 @@ public final class OutputHandler
                     			 		if(firstLTChar == 'l') {
                     			 			Long actualLongValue = Long.parseLong(actualLTValue);
                     			 			Long expectedLongValue = Long.parseLong(filterEntry.getValue().getValue());
-                    			 			if(! (actualLongValue < expectedLongValue))
-                    			 				continue;
-                    			 			processRow(unmodifiableList(tuple));
+                    			 			if(! (actualLongValue < expectedLongValue)) {
+                    			 				System.out.println("One of the actual values not less than expected value in LT operator or FILTER_WITH clause"); 
+                    			 				return;
+                    			 			}
                     			 		}
                     			 		else if(firstLTChar == 'd') {
                     			 			Double actualDoubleValue = Double.parseDouble(actualLTValue);
                     			 			Double expectedDoubleValue = Double.parseDouble(filterEntry.getValue().getValue());
-                    			 			if(! (actualDoubleValue < expectedDoubleValue))
-                    			 				continue;
-                    			 			processRow(unmodifiableList(tuple));
+                    			 			if(! (actualDoubleValue < expectedDoubleValue)) {
+                    			 				System.out.println("One of the actual values not less than expected value in LT operator or FILTER_WITH clause");
+                    			 				return;
+                    			 			}
                     			 		}
                 			 		} catch (Exception e) {
                 			 			System.out.println("For <, and > operations use 'l', 'd' to notify if it is a long or double value for comparision in FILTER_WITH clause.");
@@ -133,16 +136,18 @@ public final class OutputHandler
                     			 		if(firstGTChar == 'l') {
                     			 			Long actualLongValue = Long.parseLong(actualGTValue);
                     			 			Long expectedLongValue = Long.parseLong(filterEntry.getValue().getValue());
-                    			 			if(! (actualLongValue > expectedLongValue))
-                    			 				continue;
-                    			 			processRow(unmodifiableList(tuple));
+                    			 			if(! (actualLongValue > expectedLongValue)) {
+                    			 				System.out.println("One of the actual values not greater than expected value in GT operator or FILTER_WITH clause");
+                    			 				return;
+                    			 			}
                     			 		}
                     			 		else if(firstGTChar == 'd') {
                     			 			Double actualDoubleValue = Double.parseDouble(actualGTValue);
                     			 			Double expectedDoubleValue = Double.parseDouble(filterEntry.getValue().getValue());
-                    			 			if(! (actualDoubleValue > expectedDoubleValue))
-                    			 				continue;
-                    			 			processRow(unmodifiableList(tuple));
+                    			 			if(! (actualDoubleValue > expectedDoubleValue)) {
+                    			 				System.out.println("One of the actual values not greater than expected value in GT operator or FILTER_WITH clause");
+                    			 				return;
+                    			 			}
                     			 		}
                 			 		}catch (Exception e) {
                 			 			System.out.println("For <, and > operations use 'l', 'd' to notify if it is a long or double value for comparision in FILTER_WITH clause.");
@@ -161,8 +166,7 @@ public final class OutputHandler
                 			return;
                 		}
                 	}
-                	
-                    //processRow(unmodifiableList(tuple));
+                	processRow(unmodifiableList(tuple));
                 }
             }
 
