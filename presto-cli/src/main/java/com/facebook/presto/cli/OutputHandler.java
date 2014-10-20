@@ -96,7 +96,7 @@ public final class OutputHandler
                 			 	case Constants.EQ:
                 			 		String actualStringValue = (String)jsonRep.get(filterEntry.getValue().getKey());
                 			 		if (!filterEntry.getValue().getValue().equals(actualStringValue)) {
-                			 			System.out.println("One of the expected & actual values not equal in EQ operator or FILTER_WITH clause"); 
+                			 			System.out.println("One of the expected & actual values not equal in EQ operator of FILTER_WITH clause"); 
                 			 			return;
                 			 		}
                 			 		break;
@@ -110,7 +110,7 @@ public final class OutputHandler
                     			 			Long actualLongValue = Long.parseLong(actualLTValue);
                     			 			Long expectedLongValue = Long.parseLong(filterEntry.getValue().getValue());
                     			 			if(! (actualLongValue < expectedLongValue)) {
-                    			 				System.out.println("One of the actual values not less than expected value in LT operator or FILTER_WITH clause"); 
+                    			 				System.out.println("One of the actual values not less than expected value in LT operator of FILTER_WITH clause"); 
                     			 				return;
                     			 			}
                     			 		}
@@ -118,7 +118,7 @@ public final class OutputHandler
                     			 			Double actualDoubleValue = Double.parseDouble(actualLTValue);
                     			 			Double expectedDoubleValue = Double.parseDouble(filterEntry.getValue().getValue());
                     			 			if(! (actualDoubleValue < expectedDoubleValue)) {
-                    			 				System.out.println("One of the actual values not less than expected value in LT operator or FILTER_WITH clause");
+                    			 				System.out.println("One of the actual values not less than expected value in LT operator of FILTER_WITH clause");
                     			 				return;
                     			 			}
                     			 		}
@@ -137,7 +137,7 @@ public final class OutputHandler
                     			 			Long actualLongValue = Long.parseLong(actualGTValue);
                     			 			Long expectedLongValue = Long.parseLong(filterEntry.getValue().getValue());
                     			 			if(! (actualLongValue > expectedLongValue)) {
-                    			 				System.out.println("One of the actual values not greater than expected value in GT operator or FILTER_WITH clause");
+                    			 				System.out.println("One of the actual values not greater than expected value in GT operator of FILTER_WITH clause");
                     			 				return;
                     			 			}
                     			 		}
@@ -145,7 +145,7 @@ public final class OutputHandler
                     			 			Double actualDoubleValue = Double.parseDouble(actualGTValue);
                     			 			Double expectedDoubleValue = Double.parseDouble(filterEntry.getValue().getValue());
                     			 			if(! (actualDoubleValue > expectedDoubleValue)) {
-                    			 				System.out.println("One of the actual values not greater than expected value in GT operator or FILTER_WITH clause");
+                    			 				System.out.println("One of the actual values not greater than expected value in GT operator of FILTER_WITH clause");
                     			 				return;
                     			 			}
                     			 		}
