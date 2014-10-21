@@ -130,6 +130,7 @@ public class Console
                 // check for special commands if this is the first line
                 if (buffer.length() == 0) {
                     String command = line.trim();
+                    if (filter_string !=null) filter_string = null;
                     if(command.contains(Constants.LOWERCASE_FILTER_WITH) || command.contains(Constants.UPPERCASE_FILTER_WITH)) {
                     	String temp1 = command.toLowerCase().split(Constants.LOWERCASE_FILTER_WITH)[0];
                     	filter_string = command.toLowerCase().split(Constants.LOWERCASE_FILTER_WITH)[1];
