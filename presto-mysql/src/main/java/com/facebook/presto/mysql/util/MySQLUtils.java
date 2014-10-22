@@ -67,9 +67,9 @@ public final class MySQLUtils
 
     private static String validIdentifier(String identifier)
     {
-        if (!identifier.equals(identifier.toLowerCase())) {
+        /*if (!identifier.equals(identifier.toLowerCase())) {
             return quoteIdentifier(identifier);
-        }
+        }*/
 
         if (keywords.contains(identifier.toUpperCase())) {
             return quoteIdentifier(identifier);
